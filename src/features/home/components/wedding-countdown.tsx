@@ -126,7 +126,7 @@ function CountdownUnit({
       <span className="font-serif text-2xl sm:text-4xl">
         {value.toString().padStart(2, "0")}
       </span>
-      <span className="text-[0.62rem] uppercase tracking-[0.22em] text-white/95 sm:text-[0.68rem]">
+      <span className="text-[0.62rem] uppercase tracking-[0.22em] text-white sm:text-[0.68rem]">
         {displayLabel}
       </span>
     </div>
@@ -183,7 +183,7 @@ export function WeddingCountdown({
         <CountdownUnit className="hidden sm:flex" label="Minutes" value={countdown.minutes} />
         <CountdownUnit className="hidden sm:flex" label="Seconds" value={countdown.seconds} />
       </div>
-      <p className="text-xs uppercase tracking-[0.24em] text-white/95 sm:text-sm sm:tracking-[0.26em]">
+      <p className="text-xs uppercase tracking-[0.24em] text-white sm:text-sm sm:tracking-[0.26em]">
         {countdown.isComplete ? "Today is the day" : `Until ${dateLabel}`}
       </p>
     </div>

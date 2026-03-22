@@ -285,10 +285,6 @@ export function GuestForm({
       <Card className="border-white/80 bg-white/85">
         <CardHeader>
           <CardTitle>Guest profile</CardTitle>
-          <CardDescription>
-            Capture the guest identity and relationship context for the
-            traditional wedding list.
-          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <FormField
@@ -505,15 +501,10 @@ export function GuestForm({
       <Card className="border-white/80 bg-white/85">
         <CardHeader>
           <CardTitle>Contact channels</CardTitle>
-          <CardDescription>
-            Email and phone are optional at setup time and can be added later as
-            outreach details become available.
-          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <FormField
             label="Email address"
-            hint="Optional for now. Add it once the guest can be contacted by email."
             error={form.formState.errors.email?.message}
           >
             <Input
@@ -526,7 +517,6 @@ export function GuestForm({
 
           <FormField
             label="Phone number"
-            hint="Optional for now. Add it once the guest can be contacted by phone."
             error={form.formState.errors.phone?.message}
           >
             <Input
@@ -555,10 +545,6 @@ export function GuestForm({
       <Card className="border-white/80 bg-white/85">
         <CardHeader>
           <CardTitle>Invitation and RSVP</CardTitle>
-          <CardDescription>
-            Manage invitation progress, RSVP state, dietary requirements, and
-            plus one access in one place.
-          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <FormField

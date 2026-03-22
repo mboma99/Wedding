@@ -14,7 +14,6 @@ const accentStyles = {
 type KpiCardProps = {
   title: string;
   value: string;
-  description: string;
   icon: LucideIcon;
   accent?: keyof typeof accentStyles;
 };
@@ -22,32 +21,29 @@ type KpiCardProps = {
 export function KpiCard({
   title,
   value,
-  description,
   icon: Icon,
   accent = "neutral",
 }: KpiCardProps) {
   return (
     <Card className="overflow-hidden border-white/80 bg-white/85">
-      <CardContent className="flex items-start justify-between gap-4 p-6">
-        <div className="space-y-3">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <div className="space-y-1">
-            <p className="text-4xl font-semibold tracking-tight text-primary">
-              {value}
-            </p>
-            <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-          </div>
+      <CardContent className="flex items-start justify-between gap-3 p-5">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            {title}
+          </p>
+          <p className="text-3xl font-semibold tracking-tight text-primary sm:text-4xl">
+            {value}
+          </p>
         </div>
         <div
           className={cn(
-            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border sm:h-12 sm:w-12 sm:rounded-2xl",
             accentStyles[accent],
           )}
         >
-          <Icon className="h-5 w-5" />
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
       </CardContent>
     </Card>
   );
 }
-

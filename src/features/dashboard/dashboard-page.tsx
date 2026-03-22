@@ -93,12 +93,8 @@ export default async function DashboardPage() {
                 <AppShellNav currentPath="/admin" />
                 <div className="space-y-3">
                   <h1 className="font-serif text-3xl leading-tight text-primary sm:text-6xl sm:leading-none">
-                    Guest overview for James and Lisa&apos;s traditional wedding.
+                    Guest overview
                   </h1>
-                  <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                    Track invitations, response progress, and guest composition
-                    from one focused dashboard built for a single event.
-                  </p>
                 </div>
                 <form action="/admin/guests" method="get" className="space-y-3">
                   <label className="block space-y-2">
@@ -142,10 +138,6 @@ export default async function DashboardPage() {
               <CardTitle className="mt-4">
                 {summary.totals.responseRate}% of guests have responded.
               </CardTitle>
-              <CardDescription>
-                {summary.totals.responsesReceived} responses received and{" "}
-                {summary.totals.pending} invitations still awaiting action.
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-3">
@@ -183,28 +175,24 @@ export default async function DashboardPage() {
           <KpiCard
             title="Total guests"
             value={summary.totals.totalGuests.toString()}
-            description="Confirmed guest records in the traditional wedding list."
             icon={Users}
             accent="neutral"
           />
           <KpiCard
             title="Households"
             value={summary.totals.households.toString()}
-            description="Distinct household groupings for invitation planning."
             icon={Home}
             accent="james"
           />
           <KpiCard
             title="Attending"
             value={summary.totals.attending.toString()}
-            description={`${summary.totals.attendanceRate}% of the total list is currently attending.`}
             icon={CheckCheck}
             accent="success"
           />
           <KpiCard
             title="Pending RSVP"
             value={summary.totals.pending.toString()}
-            description="Guests who still need a response follow-up."
             icon={Clock3}
             accent="warning"
           />

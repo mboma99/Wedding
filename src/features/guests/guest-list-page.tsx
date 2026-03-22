@@ -70,13 +70,9 @@ export async function GuestListPage({
               <AppShellNav currentPath="/admin/guests" />
               <div className="space-y-3">
                 <h1 className="font-serif text-3xl leading-tight text-primary sm:text-6xl sm:leading-none">
-                  Guest list for the traditional wedding.
+                  Guest list
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                  Search, sort, and filter the full guest directory while keeping
-                  James and Lisa side ownership visible in every row.
-                </p>
-              </div>
+                </div>
               <Button asChild className="w-full sm:w-fit">
                 <Link href="/admin/guests/new">
                   <UserPlus className="mr-2 h-4 w-4" />
@@ -104,12 +100,7 @@ export async function GuestListPage({
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <SummaryCard
-                  label="Matches"
-                  value={guestList.totalGuests}
-                  accent="neutral"
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
                 <SummaryCard
                   label="James side"
                   value={guestList.sideTotals[GuestSide.JAMES]}
