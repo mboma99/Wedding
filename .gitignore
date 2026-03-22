@@ -1,0 +1,15 @@
+.idea
+.DS_Store
+.next
+node_modules
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+coverage
+dist
+out
+*.log
+*.tsbuildinfo
+prisma/dev.db

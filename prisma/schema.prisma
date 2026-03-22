@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum GuestSide {
+  JAMES
+  LISA
+}
+
+enum GroupType {
+  FAMILY
+  FRIEND
+  FAMILY_FRIEND @map("FAMILY FRIEND")
+  OTHER
+}
+
+enum GuestType {
+  ADULT
+  CHILD
+  ELDER
+}
+
+enum InviteStatus {
+  NOT_SENT
+  SENT
+  DELIVERED
+}
+
+enum RsvpStatus {
+  PENDING
+  ATTENDING
+  DECLINED
+}
+
+model Guest {
+  id            String      @id @default(cuid())
+  fullName      String      @db.VarChar(160)
+  side          GuestSide
+  groupType     GroupType
+  relation      String      @db.VarChar(100)
+  guestType     GuestType
+  householdName String?     @db.VarChar(120)
+  notes         String?     @db.Text
+  phone         String?     @db.VarChar(32)
+  email         String?     @unique @db.VarChar(320)
+  invitation    Invitation?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([fullName])
+  @@index([side])
+  @@index([groupType])
+  @@index([guestType])
+  @@index([householdName])
+}
+
+model Invitation {
+  id                  String       @id @default(cuid())
+  guestId              String       @unique
+  inviteStatus         InviteStatus @default(NOT_SENT)
+  rsvpStatus           RsvpStatus   @default(PENDING)
+  plusOneAllowed       Boolean      @default(false)
+  plusOneName          String?      @db.VarChar(160)
+  dietaryRequirements  String[]     @default([])
+  inviteToken          String       @unique @default(uuid()) @db.VarChar(36)
+  guest                Guest        @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@index([inviteStatus])
+  @@index([rsvpStatus])
+}
