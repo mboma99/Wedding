@@ -1,6 +1,7 @@
 import { InvitationExperience } from "@/features/rsvp/components/invitation-experience";
 import { RsvpLookupForm } from "@/features/rsvp/components/rsvp-lookup-form";
 import { cn } from "@/lib/utils";
+import { buildGuestDays, getWeddingDays } from "@/server/days";
 import { getPublicInvitationByToken } from "@/server/queries/rsvp";
 
 /** Warm paper backdrop, so the invitation reads as stationery on a table. */
@@ -46,9 +47,12 @@ export async function PublicRsvpPage({ token }: { token: string }) {
       return <InvalidInvitationState />;
     }
 
+    // Worked out here so a hidden date or venue never reaches the browser.
+    const days = buildGuestDays(invitation, await getWeddingDays());
+
     return (
       <InvitationBackdrop>
-        <InvitationExperience invitation={invitation} />
+        <InvitationExperience days={days} invitation={invitation} />
       </InvitationBackdrop>
     );
   } catch {

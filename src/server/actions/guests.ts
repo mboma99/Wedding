@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { FieldValue, type Transaction } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 
+
 import {
   guestFormSchema,
   normalizeGuestFormValues,
@@ -15,6 +16,7 @@ import { getDb, guestsCollection } from "@/server/db/firestore";
 import { toGuestRecord } from "@/server/db/guest-doc";
 import { setHouseholdForGuests } from "@/server/households";
 import { requireAdminSession } from "@/server/auth/admin";
+import { guestsChanged } from "@/server/guest-cache";
 
 type GuestFormActionResult =
   | {
@@ -83,6 +85,7 @@ function buildValidationError(
 }
 
 function revalidateGuestPaths(guestId: string) {
+  guestsChanged();
   revalidatePath("/admin");
   revalidatePath("/admin/guests");
   revalidatePath("/admin/guests/new");
@@ -316,6 +319,7 @@ export async function assignHouseholdAction(
       return result;
     }
 
+    guestsChanged();
     revalidatePath("/admin");
     revalidatePath("/admin/guests");
 

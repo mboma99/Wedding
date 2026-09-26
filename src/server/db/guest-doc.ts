@@ -32,6 +32,8 @@ export type GuestDoc = {
   phone: string | null;
   email: string | null;
   invitation: InvitationDoc | null;
+  /** Everyone is invited to the celebration; only a few also to the lobola. */
+  lobolaInvited: boolean;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
 };
@@ -95,6 +97,7 @@ export function toGuestRecord(snapshot: DocumentSnapshot): GuestRecord | null {
     phone: toStringOrNull(data.phone),
     email: toStringOrNull(data.email),
     invitation: toInvitation(data.invitation),
+    lobolaInvited: data.lobolaInvited === true,
     createdAt: toDate(data.createdAt),
     updatedAt: toDate(data.updatedAt),
   };

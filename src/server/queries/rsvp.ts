@@ -7,22 +7,17 @@ import {
   normalizePhoneKey,
   RSVP_CODE_LENGTH,
 } from "@/lib/rsvp";
-import { guestsCollection } from "@/server/db/firestore";
-import { toGuestRecords, type GuestRecord } from "@/server/db/guest-doc";
-
-const INVITE_TOKEN_FIELD = "invitation.inviteToken";
+import type { GuestRecord } from "@/server/db/guest-doc";
+import { getAllGuestRecords } from "@/server/guest-cache";
 
 async function findGuestByInviteToken(token: string): Promise<GuestRecord | null> {
   if (!token) {
     return null;
   }
 
-  const snapshot = await guestsCollection()
-    .where(INVITE_TOKEN_FIELD, "==", token)
-    .limit(1)
-    .get();
+  const guests = await getAllGuestRecords();
 
-  return toGuestRecords(snapshot.docs)[0] ?? null;
+  return guests.find((guest) => guest.invitation?.inviteToken === token) ?? null;
 }
 
 async function findHouseholdGuests(guest: GuestRecord): Promise<GuestRecord[]> {
@@ -32,14 +27,12 @@ async function findHouseholdGuests(guest: GuestRecord): Promise<GuestRecord[]> {
     return [guest];
   }
 
-  // Equality on householdName alone is served by the automatic single-field
-  // index; side is narrowed here so no composite index has to be deployed.
-  const snapshot = await guestsCollection()
-    .where("householdName", "==", householdName)
-    .get();
-
-  return toGuestRecords(snapshot.docs)
-    .filter((candidate) => candidate.side === guest.side)
+  // A household is guests on the same side sharing a household name.
+  return (await getAllGuestRecords())
+    .filter(
+      (candidate) =>
+        candidate.side === guest.side && candidate.householdName?.trim() === householdName,
+    )
     .sort((a, b) =>
       a.fullName.localeCompare(b.fullName, "en", { sensitivity: "base" }),
     );
@@ -87,6 +80,7 @@ export async function getPublicInvitationByToken(
       side: guest.side,
       guestType: guest.guestType,
       householdName: guest.householdName,
+      lobolaInvited: guest.lobolaInvited,
       invitation: guest.invitation!,
     })),
   };
@@ -97,13 +91,8 @@ async function resolveAccessTokenByContact(
   matches: (guest: GuestRecord) => boolean,
 ): Promise<string | null> {
   // Phones and emails are stored free-form (spacing, capitals), so they are
-  // matched in memory rather than with an equality query. The guest list is
-  // small enough to scan.
-  const snapshot = await guestsCollection()
-    .select(field, "householdName", "side", "invitation")
-    .get();
-
-  const matchingGuests = toGuestRecords(snapshot.docs).filter(
+  // matched in memory against the remembered guest list.
+  const matchingGuests = (await getAllGuestRecords()).filter(
     (guest) => guest.invitation && matches(guest),
   );
   const accessTokens = new Set<string>();
@@ -175,17 +164,11 @@ export async function resolvePublicInvitationAccessToken(
     return null;
   }
 
-  // Prefix match: tokens sort as strings, so the range covers every token that
-  // starts with the code. Two hits means the code is ambiguous, so it fails.
+  // The code is the start of an invitation token. Two matches means the code
+  // is ambiguous, so it fails.
   const prefix = inviteCode.toLowerCase();
-  const matches = await guestsCollection()
-    .where(INVITE_TOKEN_FIELD, ">=", prefix)
-    .where(INVITE_TOKEN_FIELD, "<", `${prefix}`)
-    .limit(2)
-    .get();
-
-  const matchingGuests = toGuestRecords(matches.docs).filter(
-    (guest) => guest.invitation,
+  const matchingGuests = (await getAllGuestRecords()).filter(
+    (guest) => guest.invitation?.inviteToken.toLowerCase().startsWith(prefix),
   );
 
   if (matchingGuests.length !== 1) {

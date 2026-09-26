@@ -10,8 +10,8 @@ import type {
   DashboardHouseholdFilter,
   DashboardSummary,
 } from "@/features/dashboard/types";
-import { guestsCollection } from "@/server/db/firestore";
-import { toGuestRecords, type GuestRecord } from "@/server/db/guest-doc";
+import type { GuestRecord } from "@/server/db/guest-doc";
+import { getAllGuestRecords } from "@/server/guest-cache";
 
 const sideOrder = [GuestSide.JAMES, GuestSide.LISA] as const;
 const groupOrder = [
@@ -108,8 +108,7 @@ function matchesHouseholdFilter(
 export async function getDashboardSummary(
   householdFilter: DashboardHouseholdFilter | null = null,
 ): Promise<DashboardSummary> {
-  const snapshot = await guestsCollection().get();
-  const guests = toGuestRecords(snapshot.docs).filter((guest) =>
+  const guests = (await getAllGuestRecords()).filter((guest) =>
     matchesHouseholdFilter(guest, householdFilter),
   );
 

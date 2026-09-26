@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, startTransition, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { RsvpStatus } from "@/domain/enums";
 import {
   getPublicRsvpInitialValues,
+  hasReplied,
   publicRsvpFormSchema,
   type PublicInvitationRecord,
   type PublicRsvpFormValues,
@@ -47,6 +49,71 @@ function ReplyChoice({
   );
 }
 
+type SummaryGuest = {
+  id: string;
+  name: string;
+  status: "ATTENDING" | "DECLINED" | "PENDING";
+  plusOneName: string;
+  dietary: string;
+};
+
+/** What each person has told us, set out plainly. */
+function ReplySummary({ guests }: { guests: SummaryGuest[] }) {
+  return (
+    <ul className="divide-y divide-primary/10 rounded-lg border border-primary/15 bg-white/70">
+      {guests.map((guest) => (
+        <li className="space-y-2 px-4 py-4 sm:px-5" key={guest.id}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-serif text-xl text-primary">{guest.name}</p>
+            <StatusPill status={guest.status} />
+          </div>
+          {guest.status === "ATTENDING" && (guest.plusOneName || guest.dietary) ? (
+            <dl className="space-y-1 text-sm">
+              {guest.plusOneName ? (
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground">Bringing</dt>
+                  <dd className="text-primary">{guest.plusOneName}</dd>
+                </div>
+              ) : null}
+              {guest.dietary ? (
+                <div className="flex gap-2">
+                  <dt className="text-muted-foreground">Dietary needs</dt>
+                  <dd className="text-primary">{guest.dietary}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function StatusPill({ status }: { status: SummaryGuest["status"] }) {
+  if (status === "ATTENDING") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800">
+        <svg aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 16 16">
+          <path d="M3 8.5l3.2 3L13 4.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Attending
+      </span>
+    );
+  }
+  if (status === "DECLINED") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-[#efe7da] px-3 py-1 text-sm font-semibold text-primary">
+        Not attending
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">
+      No reply yet
+    </span>
+  );
+}
+
 function thankYouMessage(values: PublicRsvpFormValues) {
   const attending = values.guests.filter(
     (guest) => guest.rsvpStatus === RsvpStatus.ATTENDING,
@@ -64,20 +131,36 @@ function thankYouMessage(values: PublicRsvpFormValues) {
 }
 
 export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
+  const router = useRouter();
   const [serverMessage, setServerMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [submitted, setSubmitted] = useState<PublicRsvpFormValues | null>(null);
+  // Everyone has replied: open on what they told us, not on the form.
+  const everyoneReplied = invitation.guests.every(hasReplied);
+  const [editing, setEditing] = useState(!everyoneReplied);
 
+  // Starting values may leave a reply unchosen; the schema insists on one before sending.
   const form = useForm<PublicRsvpFormValues>({
     resolver: zodResolver(publicRsvpFormSchema),
     defaultValues: getPublicRsvpInitialValues(invitation),
   });
 
   const guests = form.watch("guests");
-  const hasRepliedBefore = invitation.guests.some(
-    (guest) => guest.invitation.rsvpStatus !== RsvpStatus.PENDING,
-  );
+  const hasRepliedBefore = invitation.guests.some(hasReplied);
   const isHousehold = invitation.guests.length > 1;
+
+  // The latest answers: what was just sent, or what we have on record.
+  const summaryGuests: SummaryGuest[] = invitation.guests.map((guest, index) => {
+    const sent = submitted?.guests[index];
+    return {
+      id: guest.id,
+      name: guest.fullName,
+      status: sent ? sent.rsvpStatus : guest.invitation.rsvpStatus,
+      plusOneName: sent ? sent.plusOneName : (guest.invitation.plusOneName ?? ""),
+      dietary: sent ? sent.dietaryRequirements : guest.invitation.dietaryRequirements.join(", "),
+    };
+  });
+  const changeLabel = `Change ${isHousehold ? "our" : "my"} reply`;
 
   const onSubmit = form.handleSubmit((values) => {
     setServerMessage(null);
@@ -103,11 +186,14 @@ export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
       }
 
       setSubmitted(values);
+      setEditing(false);
       setIsPending(false);
+      // A yes can unlock the date, place and plan; a no hides them again.
+      router.refresh();
     });
   });
 
-  if (submitted) {
+  if (submitted && !editing) {
     return (
       <div className="flex flex-col items-center gap-5 py-4 text-center" role="status">
         <WaxSeal className="stamp-in h-28 w-28" />
@@ -120,13 +206,36 @@ export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
             {thankYouMessage(submitted)}
           </p>
         </div>
-        <button
-          className="animate-enter text-sm font-medium text-primary underline-offset-4 [animation-delay:300ms] hover:underline"
-          onClick={() => setSubmitted(null)}
+        <div className="animate-enter w-full text-left [animation-delay:250ms]">
+          <ReplySummary guests={summaryGuests} />
+        </div>
+        <Button
+          className="animate-enter [animation-delay:300ms]"
+          onClick={() => setEditing(true)}
           type="button"
+          variant="outline"
         >
-          Change {isHousehold ? "our" : "my"} reply
-        </button>
+          {changeLabel}
+        </Button>
+      </div>
+    );
+  }
+
+  if (!editing) {
+    return (
+      <div className="space-y-6">
+        <p className="text-center text-sm text-muted-foreground">
+          Thank you, we have {isHousehold ? "your household's" : "your"} reply.
+        </p>
+        <ReplySummary guests={summaryGuests} />
+        <div className="flex flex-col items-center gap-3">
+          <Button onClick={() => setEditing(true)} type="button" variant="outline">
+            {changeLabel}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            If plans change, you can update it here. RSVP code {formatInviteCode(invitation.inviteCode)}
+          </p>
+        </div>
       </div>
     );
   }
@@ -135,7 +244,7 @@ export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
     <form className="space-y-8" noValidate onSubmit={onSubmit}>
       {hasRepliedBefore ? (
         <p className="rounded-lg bg-primary/[0.04] px-4 py-3 text-center text-sm text-muted-foreground">
-          You&apos;ve replied before. Change anything below and send it again.
+          Your current reply is selected below. Change anything, then send it again.
         </p>
       ) : null}
 
@@ -150,7 +259,7 @@ export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
 
       <fieldset className="space-y-8" disabled={isPending}>
         {invitation.guests.map((guest, index) => {
-          const isAttending = guests[index]?.rsvpStatus !== RsvpStatus.DECLINED;
+          const isAttending = guests[index]?.rsvpStatus === RsvpStatus.ATTENDING;
           const idBase = `guest-${index}`;
           const statusError = form.formState.errors.guests?.[index]?.rsvpStatus?.message;
 
@@ -251,6 +360,20 @@ export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
         <Button className="w-full sm:w-auto sm:px-10" disabled={isPending} size="lg" type="submit">
           {isPending ? "Sending..." : isHousehold ? "Send our reply" : "Send my reply"}
         </Button>
+        {everyoneReplied || submitted ? (
+          <button
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+            disabled={isPending}
+            onClick={() => {
+              form.reset(submitted ?? getPublicRsvpInitialValues(invitation));
+              setServerMessage(null);
+              setEditing(false);
+            }}
+            type="button"
+          >
+            Keep {isHousehold ? "our" : "my"} reply as it is
+          </button>
+        ) : null}
         <p className="text-xs text-muted-foreground">
           RSVP code {formatInviteCode(invitation.inviteCode)}
         </p>

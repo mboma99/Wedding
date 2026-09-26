@@ -9,11 +9,13 @@ import { useAdminNavigation } from "@/components/shared/admin-navigation";
 import { cn } from "@/lib/utils";
 import { logoutAdminAction } from "@/server/actions/admin-auth";
 
+// Five tabs don't fit a phone at full length, so two have a short label there.
 const navigationItems = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/guests", label: "Guests" },
-  { href: "/admin/vendors", label: "Vendors" },
-  { href: "/admin/floor-plan", label: "Floor plan" },
+  { href: "/admin", label: "Dashboard", short: "Home" },
+  { href: "/admin/guests", label: "Guests", short: null },
+  { href: "/admin/vendors", label: "Vendors", short: null },
+  { href: "/admin/floor-plan", label: "Floor plan", short: "Plan" },
+  { href: "/admin/days", label: "Days", short: null },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -42,7 +44,7 @@ export function AdminNav() {
 
         <nav
           aria-label="Admin"
-          className="segmented order-last grid w-full grid-cols-4 gap-1 rounded-[var(--segment-radius)] bg-muted/70 p-1 sm:order-none sm:w-[28rem]"
+          className="segmented order-last grid w-full grid-cols-5 gap-1 rounded-[var(--segment-radius)] bg-muted/70 p-1 sm:order-none sm:w-[34rem]"
           style={{ "--segments": navigationItems.length } as CSSProperties}
         >
           {navigationItems.map((item) => {
@@ -63,7 +65,14 @@ export function AdminNav() {
                   startNavigation(item.href);
                 }}
               >
-                {item.label}
+                {item.short ? (
+                  <>
+                    <span className="sm:hidden">{item.short}</span>
+                    <span className="hidden sm:inline">{item.label}</span>
+                  </>
+                ) : (
+                  item.label
+                )}
               </Link>
             );
           })}

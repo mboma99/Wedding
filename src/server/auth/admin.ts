@@ -1,8 +1,9 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 const ADMIN_SESSION_COOKIE = "wedding_admin_session";
+const SESSION_DAYS = 7;
 
 function getAdminPassword() {
   return process.env.ADMIN_PASSWORD ?? "";
@@ -12,7 +13,11 @@ function getAdminSessionSecret() {
   return process.env.ADMIN_SESSION_SECRET ?? getAdminPassword();
 }
 
-function createAdminSessionValue() {
+/**
+ * The key sessions are signed with. It mixes in the password, so changing
+ * ADMIN_PASSWORD signs every existing session out.
+ */
+function signingKey() {
   const password = getAdminPassword();
   const secret = getAdminSessionSecret();
 
@@ -20,37 +25,47 @@ function createAdminSessionValue() {
     return null;
   }
 
-  return createHash("sha256")
-    .update(`${password}:${secret}:traditional-wedding-admin`)
-    .digest("hex");
+  return createHash("sha256").update(`${secret}:${password}:traditional-wedding-admin`).digest();
+}
+
+function sign(key: Buffer, payload: string) {
+  return createHmac("sha256", key).update(payload).digest("hex");
+}
+
+function sameText(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
 }
 
 export function isAdminAuthConfigured() {
   return Boolean(getAdminPassword() && getAdminSessionSecret());
 }
 
+/**
+ * A session cookie is "<expiry>.<random>.<signature>": new and random on each
+ * login, and only valid until it expires.
+ */
 export async function hasAdminSession() {
-  const expected = createAdminSessionValue();
+  const key = signingKey();
 
-  if (!expected) {
+  if (!key) {
     return false;
   }
 
   const cookieStore = await cookies();
-  const actual = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const value = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const [expiresAt, nonce, signature] = value?.split(".") ?? [];
 
-  if (!actual) {
+  if (!expiresAt || !nonce || !signature) {
     return false;
   }
 
-  const expectedBuffer = Buffer.from(expected);
-  const actualBuffer = Buffer.from(actual);
-
-  if (expectedBuffer.length !== actualBuffer.length) {
+  if (!/^\d+$/.test(expiresAt) || Number(expiresAt) * 1000 <= Date.now()) {
     return false;
   }
 
-  return timingSafeEqual(expectedBuffer, actualBuffer);
+  return sameText(signature, sign(key, `${expiresAt}.${nonce}`));
 }
 
 export async function requireAdminSession() {
@@ -60,11 +75,15 @@ export async function requireAdminSession() {
 }
 
 export async function setAdminSession() {
-  const value = createAdminSessionValue();
+  const key = signingKey();
 
-  if (!value) {
+  if (!key) {
     throw new Error("Admin password is not configured.");
   }
+
+  const expiresAt = Math.floor(Date.now() / 1000) + SESSION_DAYS * 24 * 60 * 60;
+  const nonce = randomBytes(16).toString("hex");
+  const value = `${expiresAt}.${nonce}.${sign(key, `${expiresAt}.${nonce}`)}`;
 
   const cookieStore = await cookies();
   cookieStore.set(ADMIN_SESSION_COOKIE, value, {
@@ -72,7 +91,7 @@ export async function setAdminSession() {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 14,
+    maxAge: SESSION_DAYS * 24 * 60 * 60,
   });
 }
 
@@ -81,6 +100,10 @@ export async function clearAdminSession() {
   cookieStore.delete(ADMIN_SESSION_COOKIE);
 }
 
+/**
+ * Compares fixed-length digests, so the time taken doesn't reveal anything
+ * about the password, not even its length.
+ */
 export function verifyAdminPassword(password: string) {
   const expected = getAdminPassword();
 
@@ -88,12 +111,6 @@ export function verifyAdminPassword(password: string) {
     return false;
   }
 
-  const expectedBuffer = Buffer.from(expected);
-  const actualBuffer = Buffer.from(password);
-
-  if (expectedBuffer.length !== actualBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(expectedBuffer, actualBuffer);
+  const digest = (text: string) => createHash("sha256").update(text).digest();
+  return timingSafeEqual(digest(expected), digest(password));
 }
