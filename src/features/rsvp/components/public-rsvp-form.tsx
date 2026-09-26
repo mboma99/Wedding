@@ -1,41 +1,72 @@
 "use client";
 
-import { useState, startTransition } from "react";
+import { useState, startTransition, type CSSProperties } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, HeartHandshake } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { RsvpStatus } from "@/domain/enums";
 import {
-  getInvitationHeading,
-  getInvitationSummary,
   getPublicRsvpInitialValues,
   publicRsvpFormSchema,
   type PublicInvitationRecord,
   type PublicRsvpFormValues,
 } from "@/features/rsvp/types";
 import { formatInviteCode } from "@/lib/rsvp";
+import { WaxSeal } from "@/features/rsvp/components/wax-seal";
 import { submitPublicRsvpAction } from "@/server/actions/rsvp";
 
 type PublicRsvpFormProps = {
   invitation: PublicInvitationRecord;
 };
 
-function FieldError({ message }: { message?: string }) {
+function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) {
     return null;
   }
 
-  return <p className="text-sm text-rose-600">{message}</p>;
+  return (
+    <p className="text-sm text-destructive" id={id}>
+      {message}
+    </p>
+  );
+}
+
+function ReplyChoice({
+  label,
+  ...inputProps
+}: { label: string } & Omit<React.ComponentProps<"input">, "type" | "className">) {
+  return (
+    <label className="relative min-w-0">
+      <input className="peer sr-only" type="radio" {...inputProps} />
+      <span className="flex h-11 cursor-pointer items-center justify-center rounded-[calc(var(--segment-radius)_-_4px)] px-3 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-primary peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed">
+        {label}
+      </span>
+    </label>
+  );
+}
+
+function thankYouMessage(values: PublicRsvpFormValues) {
+  const attending = values.guests.filter(
+    (guest) => guest.rsvpStatus === RsvpStatus.ATTENDING,
+  ).length;
+
+  if (attending === values.guests.length) {
+    return "We can't wait to celebrate with you.";
+  }
+
+  if (attending === 0) {
+    return "Thank you for letting us know. You'll be missed.";
+  }
+
+  return "Thank you. We've saved everyone's replies.";
 }
 
 export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
   const [serverMessage, setServerMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState<PublicRsvpFormValues | null>(null);
 
   const form = useForm<PublicRsvpFormValues>({
     resolver: zodResolver(publicRsvpFormSchema),
@@ -43,13 +74,27 @@ export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
   });
 
   const guests = form.watch("guests");
+  const hasRepliedBefore = invitation.guests.some(
+    (guest) => guest.invitation.rsvpStatus !== RsvpStatus.PENDING,
+  );
+  const isHousehold = invitation.guests.length > 1;
 
   const onSubmit = form.handleSubmit((values) => {
     setServerMessage(null);
     setIsPending(true);
 
     startTransition(async () => {
-      const result = await submitPublicRsvpAction(invitation.token, values);
+      let result: Awaited<ReturnType<typeof submitPublicRsvpAction>>;
+
+      try {
+        result = await submitPublicRsvpAction(invitation.token, values);
+      } catch {
+        // Guests often reply from a phone; a dropped connection shouldn't
+        // leave the button stuck on "Sending...".
+        setServerMessage("We couldn't send your reply. Check your connection and try again.");
+        setIsPending(false);
+        return;
+      }
 
       if (!result.success) {
         setServerMessage(result.message);
@@ -57,190 +102,159 @@ export function PublicRsvpForm({ invitation }: PublicRsvpFormProps) {
         return;
       }
 
-      setIsSubmitted(true);
+      setSubmitted(values);
       setIsPending(false);
     });
   });
 
-  if (isSubmitted) {
+  if (submitted) {
     return (
-      <Card className="border-white/80 bg-white/90">
-        <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:p-10">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700">
-            <CheckCircle2 className="h-8 w-8" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="font-serif text-4xl text-primary">
-              RSVP received
-            </h2>
-            <p className="max-w-xl text-sm leading-6 text-muted-foreground">
-              Thank you. Your response for {getInvitationHeading(invitation)} has
-              been saved.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center gap-5 py-4 text-center" role="status">
+        <WaxSeal className="stamp-in h-28 w-28" />
+        <p className="animate-enter text-xs font-semibold uppercase tracking-[0.28em] text-primary/60 [animation-delay:150ms]">
+          Reply sent
+        </p>
+        <div className="animate-enter space-y-2 [animation-delay:200ms]">
+          <p className="font-serif text-3xl text-primary">Thank you</p>
+          <p className="mx-auto max-w-sm text-base leading-7 text-muted-foreground">
+            {thankYouMessage(submitted)}
+          </p>
+        </div>
+        <button
+          className="animate-enter text-sm font-medium text-primary underline-offset-4 [animation-delay:300ms] hover:underline"
+          onClick={() => setSubmitted(null)}
+          type="button"
+        >
+          Change {isHousehold ? "our" : "my"} reply
+        </button>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="overflow-hidden border-white/80 bg-white/90">
-        <CardContent className="space-y-6 p-5 sm:p-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-[1.5rem] border border-primary/10 bg-primary/10 text-primary">
-            <HeartHandshake className="h-6 w-6" />
-          </div>
-          <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-              Public RSVP
-            </p>
-            <h1 className="font-serif text-3xl leading-tight text-primary sm:text-6xl sm:leading-none">
-              {getInvitationHeading(invitation)}
-            </h1>
-            <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-              {getInvitationSummary(invitation)}
-            </p>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              RSVP code: {formatInviteCode(invitation.inviteCode)}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+    <form className="space-y-8" noValidate onSubmit={onSubmit}>
+      {hasRepliedBefore ? (
+        <p className="rounded-lg bg-primary/[0.04] px-4 py-3 text-center text-sm text-muted-foreground">
+          You&apos;ve replied before. Change anything below and send it again.
+        </p>
+      ) : null}
 
       {serverMessage ? (
-        <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div
+          className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+          role="alert"
+        >
           {serverMessage}
         </div>
       ) : null}
 
-      <form className="space-y-6" onSubmit={onSubmit}>
+      <fieldset className="space-y-8" disabled={isPending}>
         {invitation.guests.map((guest, index) => {
-          const response = guests[index];
-          const isAttending = response?.rsvpStatus !== "DECLINED";
+          const isAttending = guests[index]?.rsvpStatus !== RsvpStatus.DECLINED;
+          const idBase = `guest-${index}`;
+          const statusError = form.formState.errors.guests?.[index]?.rsvpStatus?.message;
 
           return (
-            <Card key={guest.id} className="border-white/80 bg-white/90">
-              <CardHeader>
-                <CardTitle>{guest.fullName}</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 p-5 md:grid-cols-2 sm:p-6">
-                <div className="space-y-3 md:col-span-2">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Attendance response
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="rounded-[1.25rem] border border-border bg-muted/20 p-4">
-                      <div className="flex items-center gap-3">
-                        <input
-                          disabled={isPending}
-                          type="radio"
-                          value="ATTENDING"
-                          {...form.register(`guests.${index}.rsvpStatus`)}
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-primary">
-                            Joyfully attending
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Confirm this guest as attending.
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                    <label className="rounded-[1.25rem] border border-border bg-muted/20 p-4">
-                      <div className="flex items-center gap-3">
-                        <input
-                          disabled={isPending}
-                          type="radio"
-                          value="DECLINED"
-                          {...form.register(`guests.${index}.rsvpStatus`)}
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-primary">
-                            Unable to attend
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Mark this guest as declining.
-                          </p>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                  <FieldError
-                    message={form.formState.errors.guests?.[index]?.rsvpStatus?.message}
-                  />
-                </div>
+            <div
+              className="space-y-4 border-b border-primary/10 pb-8 last:border-0 last:pb-0"
+              key={guest.id}
+            >
+              <p className="font-serif text-2xl text-primary" id={`${idBase}-name`}>
+                {guest.fullName}
+              </p>
 
-                {guest.invitation.plusOneAllowed ? (
-                  <label className="space-y-2">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Plus one name
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Optional. Leave blank if no plus one is attending.
-                      </p>
+              <div
+                aria-labelledby={`${idBase}-name`}
+                className="segmented grid grid-cols-2 gap-1 rounded-[var(--segment-radius)] bg-[#efe7da] p-1"
+                role="radiogroup"
+                style={{ "--segments": 2 } as CSSProperties}
+              >
+                <ReplyChoice
+                  label="Attending"
+                  value={RsvpStatus.ATTENDING}
+                  {...form.register(`guests.${index}.rsvpStatus`)}
+                />
+                <ReplyChoice
+                  label="Not attending"
+                  value={RsvpStatus.DECLINED}
+                  {...form.register(`guests.${index}.rsvpStatus`)}
+                />
+                <span aria-hidden className="segmented-thumb" />
+              </div>
+              <FieldError id={`${idBase}-status-error`} message={statusError} />
+
+              {isAttending ? (
+                <div className="animate-enter grid gap-4 sm:grid-cols-2">
+                  {guest.invitation.plusOneAllowed ? (
+                    <div className="space-y-2">
+                      <label
+                        className="flex items-baseline justify-between text-sm font-medium text-primary"
+                        htmlFor={`${idBase}-plus-one`}
+                      >
+                        Bringing a guest?
+                        <span className="text-xs font-normal text-muted-foreground">
+                          Optional
+                        </span>
+                      </label>
+                      <Input
+                        autoComplete="off"
+                        className="bg-white"
+                        id={`${idBase}-plus-one`}
+                        placeholder="Their name"
+                        {...form.register(`guests.${index}.plusOneName`)}
+                      />
+                      <FieldError
+                        id={`${idBase}-plus-one-error`}
+                        message={form.formState.errors.guests?.[index]?.plusOneName?.message}
+                      />
                     </div>
+                  ) : null}
+
+                  <div
+                    className={
+                      guest.invitation.plusOneAllowed ? "space-y-2" : "space-y-2 sm:col-span-2"
+                    }
+                  >
+                    <label
+                      className="flex items-baseline justify-between text-sm font-medium text-primary"
+                      htmlFor={`${idBase}-dietary`}
+                    >
+                      Any dietary needs?
+                      <span className="text-xs font-normal text-muted-foreground">
+                        Optional
+                      </span>
+                    </label>
                     <Input
-                      disabled={!isAttending || isPending}
-                      placeholder="Name of your plus one"
-                      {...form.register(`guests.${index}.plusOneName`)}
+                      className="bg-white"
+                      id={`${idBase}-dietary`}
+                      placeholder="e.g. Vegetarian, no nuts"
+                      {...form.register(`guests.${index}.dietaryRequirements`)}
                     />
                     <FieldError
+                      id={`${idBase}-dietary-error`}
                       message={
-                        form.formState.errors.guests?.[index]?.plusOneName?.message
+                        form.formState.errors.guests?.[index]?.dietaryRequirements?.message
                       }
                     />
-                  </label>
-                ) : null}
-
-                <label
-                  className={
-                    guest.invitation.plusOneAllowed
-                      ? "space-y-2"
-                      : "space-y-2 md:col-span-2"
-                  }
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Dietary requirements
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Separate multiple items with commas or new lines.
-                    </p>
                   </div>
-                  <Textarea
-                    disabled={!isAttending || isPending}
-                    placeholder="Vegetarian, No shellfish"
-                    {...form.register(`guests.${index}.dietaryRequirements`)}
-                  />
-                  <FieldError
-                    message={
-                      form.formState.errors.guests?.[index]?.dietaryRequirements
-                        ?.message
-                    }
-                  />
-                </label>
+                </div>
+              ) : null}
 
-                <input
-                  type="hidden"
-                  {...form.register(`guests.${index}.guestId`)}
-                />
-                <input
-                  type="hidden"
-                  {...form.register(`guests.${index}.plusOneAllowed`)}
-                />
-              </CardContent>
-            </Card>
+              <input type="hidden" {...form.register(`guests.${index}.guestId`)} />
+              <input type="hidden" {...form.register(`guests.${index}.plusOneAllowed`)} />
+            </div>
           );
         })}
+      </fieldset>
 
-        <div className="flex justify-end">
-          <Button className="w-full sm:w-auto" disabled={isPending} size="lg" type="submit">
-            {isPending ? "Submitting RSVP..." : "Submit RSVP"}
-          </Button>
-        </div>
-      </form>
-    </div>
+      <div className="flex flex-col items-center gap-4 pt-2">
+        <Button className="w-full sm:w-auto sm:px-10" disabled={isPending} size="lg" type="submit">
+          {isPending ? "Sending..." : isHousehold ? "Send our reply" : "Send my reply"}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          RSVP code {formatInviteCode(invitation.inviteCode)}
+        </p>
+      </div>
+    </form>
   );
 }

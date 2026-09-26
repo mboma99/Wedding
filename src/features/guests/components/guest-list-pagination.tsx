@@ -22,7 +22,10 @@ export function GuestListPagination({
   totalGuests,
 }: GuestListPaginationProps) {
   return (
-    <div className="flex flex-col gap-4 rounded-[1.5rem] border border-border/80 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <nav
+      aria-label="Guest list pages"
+      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+    >
       <p className="text-sm text-muted-foreground">
         Showing <span className="font-semibold text-primary">{pageStart}</span> to{" "}
         <span className="font-semibold text-primary">{pageEnd}</span> of{" "}
@@ -42,7 +45,7 @@ export function GuestListPagination({
             Previous
           </Link>
         </Button>
-        <div className="shrink-0 rounded-full border border-border bg-white/85 px-3 py-2 text-center text-xs font-medium text-primary sm:px-4 sm:text-sm">
+        <div className="shrink-0 px-2 text-center text-xs font-medium text-muted-foreground sm:text-sm">
           Page {page} of {totalPages}
         </div>
         <Button
@@ -63,6 +66,6 @@ export function GuestListPagination({
           </Link>
         </Button>
       </div>
-    </div>
+    </nav>
   );
 }

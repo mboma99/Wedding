@@ -26,7 +26,22 @@
     --james-foreground: 210 40% 98%;
     --lisa: 338 83% 68%;
     --lisa-foreground: 355 100% 99%;
+    --destructive: 352 65% 42%;
     --radius: 1rem;
+    /* Card and control shapes are variables so the admin area can run
+       flatter and tighter without restyling the guest-facing pages. */
+    --card-radius: 1.75rem;
+    --card-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+    --control-radius: 1rem;
+    /* Segmented controls (tabs, radio choices) are near-pill; the inner
+       thumb is always this minus the 4px track padding. */
+    --segment-radius: 1.375rem;
+
+    /* Motion tokens. Strong curves: ease-out for things entering or
+       responding, ease-in-out for things moving across the screen. */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   * {
@@ -41,8 +56,347 @@
   }
 }
 
+@layer components {
+  /* Admin: a calm working surface. Solid warm canvas instead of the
+     landing-page glow, near-flat cards, tabular digits for every figure. */
+  .admin-scope {
+    --card-radius: 1rem;
+    --card-shadow: 0 1px 2px rgba(60, 45, 30, 0.04);
+    --control-radius: 0.625rem;
+    font-variant-numeric: tabular-nums;
+    background-color: hsl(var(--background));
+  }
+}
+
+@layer components {
+  /* Segmented control with a sliding thumb. The active item is found with
+     :has(), so radios, links and tabs all drive it without any JS (:has()
+     can't nest, hence one selector per kind of "active"). Items are
+     equal width; the thumb is the last child and sits behind them. */
+  .segmented {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .segmented-thumb {
+    position: absolute;
+    z-index: -1;
+    top: 4px;
+    bottom: 4px;
+    left: 4px;
+    width: calc((100% - 8px - (var(--segments) - 1) * 4px) / var(--segments));
+    border-radius: calc(var(--segment-radius) - 4px);
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(60, 45, 30, 0.08);
+    transition:
+      transform 250ms var(--ease-in-out),
+      opacity 150ms var(--ease-out);
+  }
+
+  .segmented:has(
+      > :nth-child(2) input:checked,
+      > :nth-child(2)[aria-current="page"],
+      > :nth-child(2)[aria-selected="true"]
+    )
+    > .segmented-thumb {
+    transform: translateX(calc(100% + 4px));
+  }
+
+  .segmented:has(
+      > :nth-child(3) input:checked,
+      > :nth-child(3)[aria-current="page"],
+      > :nth-child(3)[aria-selected="true"]
+    )
+    > .segmented-thumb {
+    transform: translateX(calc(200% + 8px));
+  }
+
+  .segmented:has(
+      > :nth-child(4) input:checked,
+      > :nth-child(4)[aria-current="page"],
+      > :nth-child(4)[aria-selected="true"]
+    )
+    > .segmented-thumb {
+    transform: translateX(calc(300% + 12px));
+  }
+
+  .segmented:not(:has(input:checked, [aria-current="page"], [aria-selected="true"])) > .segmented-thumb {
+    opacity: 0;
+  }
+
+  /* A choice group that wraps onto two rows on phones can't slide one
+     thumb across rows, so there each checked item paints its own. */
+  @media (max-width: 639px) {
+    .segmented[data-wrap] > .segmented-thumb {
+      display: none;
+    }
+
+    .segmented[data-wrap] input:checked + span {
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(60, 45, 30, 0.08);
+    }
+  }
+
+  /* Content that appears: a short rise and fade. */
+  .animate-enter {
+    animation: enter 220ms var(--ease-out) both;
+  }
+
+  /* Page sections arrive in a quick cascade rather than all at once. */
+  .page-enter > main:not([aria-busy]) > * {
+    animation: enter 260ms var(--ease-out) both;
+  }
+
+  .page-enter > main:not([aria-busy]) > :nth-child(2) { animation-delay: 40ms; }
+  .page-enter > main:not([aria-busy]) > :nth-child(3) { animation-delay: 80ms; }
+  .page-enter > main:not([aria-busy]) > :nth-child(4) { animation-delay: 120ms; }
+  .page-enter > main:not([aria-busy]) > :nth-child(n + 5) { animation-delay: 160ms; }
+
+  .fade-enter {
+    animation: fade-in 200ms var(--ease-out) both;
+  }
+}
+
+@layer components {
+  /* ---- RSVP invitation: an envelope that opens into the letter ---- */
+  .envelope-scene {
+    perspective: 1400px;
+    transition:
+      opacity 300ms var(--ease-out),
+      transform 300ms var(--ease-out);
+  }
+
+  .envelope-scene[data-state="leaving"] {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+
+  .envelope {
+    position: relative;
+    width: min(88vw, 440px);
+    aspect-ratio: 10 / 7;
+    transition: transform 200ms var(--ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .envelope-scene[data-state="sealed"] .envelope:hover {
+      transform: translateY(-4px);
+    }
+
+    .envelope-scene[data-state="sealed"] .envelope:hover .envelope-seal {
+      transform: translate(-50%, -50%) scale(1.04);
+    }
+  }
+
+  .envelope-back,
+  .envelope-pocket,
+  .envelope-flap,
+  .envelope-letter {
+    position: absolute;
+  }
+
+  .envelope-back {
+    inset: 0;
+    border-radius: 6px;
+    background: #d8cab4;
+    box-shadow: 0 24px 60px -24px rgba(60, 40, 20, 0.45);
+  }
+
+  .envelope-letter {
+    z-index: 2;
+    inset: 6% 5% auto;
+    height: 86%;
+    border-radius: 4px;
+    background: #fbf8f2;
+    box-shadow: 0 2px 10px rgba(60, 40, 20, 0.12);
+    transition: transform 700ms var(--ease-drawer) 450ms;
+  }
+
+  /* Pocket and flap are SVG shapes rather than clip-path: Chrome can drop a
+     clip-path while a neighbouring layer animates, which showed the pocket
+     as a full rectangle hiding the rising letter. */
+  .envelope-pocket {
+    z-index: 3;
+    inset: 0;
+  }
+
+  .envelope-shape {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .envelope-flap {
+    z-index: 4;
+    inset: 0 0 auto;
+    height: 53%;
+    transform-origin: top;
+    transition:
+      transform 550ms var(--ease-in-out),
+      z-index 0s linear 275ms;
+  }
+
+  /* The only place the wax colour is used. */
+  /* The only place the wax colour is used (see WaxSeal). */
+  .envelope-seal {
+    position: absolute;
+    z-index: 5;
+    top: 50%;
+    left: 50%;
+    display: block;
+    width: 25%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    transition:
+      transform 200ms var(--ease-out),
+      opacity 220ms var(--ease-out) 140ms;
+  }
+
+  .envelope-seal svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* On opening the seal cracks: each half twists away along the break. */
+  .seal-half {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 320ms var(--ease-out);
+  }
+
+  .seal-half {
+    opacity: 0;
+  }
+
+  .envelope-scene:not([data-state="sealed"]) .seal-half {
+    opacity: 1;
+  }
+
+  .envelope-scene:not([data-state="sealed"]) .seal-whole {
+    opacity: 0;
+  }
+
+  .envelope-scene:not([data-state="sealed"]) .seal-half-left {
+    transform: translate(-9%, 4%) rotate(-12deg);
+  }
+
+  .envelope-scene:not([data-state="sealed"]) .seal-half-right {
+    transform: translate(9%, 4%) rotate(12deg);
+  }
+
+  .envelope-caption {
+    transition: opacity 200ms var(--ease-out);
+  }
+
+  /* Captions step aside so the lifted flap and letter have the space. */
+  .envelope-scene:not([data-state="sealed"]) .envelope-caption {
+    opacity: 0;
+  }
+
+  .envelope-scene[data-state="opening"] .envelope-seal,
+  .envelope-scene[data-state="leaving"] .envelope-seal {
+    opacity: 0;
+  }
+
+  .envelope-scene[data-state="opening"] .envelope-flap,
+  .envelope-scene[data-state="leaving"] .envelope-flap {
+    z-index: 1;
+    transform: rotateX(180deg);
+  }
+
+  .envelope-scene[data-state="opening"] .envelope-letter,
+  .envelope-scene[data-state="leaving"] .envelope-letter {
+    transform: translateY(-56%);
+  }
+
+  /* The full invitation arriving once the envelope clears. */
+  .letter-enter {
+    animation: letter-in 600ms var(--ease-out) both;
+  }
+
+  .letter-enter .letter-stagger > * {
+    animation: enter 500ms var(--ease-out) both;
+  }
+
+  .letter-enter .letter-stagger > :nth-child(2) { animation-delay: 80ms; }
+  .letter-enter .letter-stagger > :nth-child(3) { animation-delay: 160ms; }
+  .letter-enter .letter-stagger > :nth-child(4) { animation-delay: 240ms; }
+  .letter-enter .letter-stagger > :nth-child(n + 5) { animation-delay: 320ms; }
+
+  /* A reply received: the seal is pressed onto the page. */
+  .stamp-in {
+    animation: stamp 450ms var(--ease-out) both;
+  }
+}
+
+@keyframes letter-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+}
+
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (hover: none) {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  /* Fewer and gentler, not none: keep fades, drop movement. */
+  .animate-enter,
+  .page-enter > main:not([aria-busy]) > * {
+    animation-name: fade-in;
+    animation-delay: 0ms;
+  }
+
+  .segmented-thumb {
+    transition: opacity 150ms var(--ease-out);
+  }
+
+  .seal-half {
+    transition: none;
+  }
+
+  .envelope-scene:not([data-state="sealed"]) .seal-half-left,
+  .envelope-scene:not([data-state="sealed"]) .seal-half-right {
+    transform: none;
+  }
+
+  .letter-enter,
+  .letter-enter .letter-stagger > *,
+  .stamp-in {
+    animation-name: fade-in;
+    animation-delay: 0ms;
+  }
+
+  .active\:scale-\[0\.97\]:active {
+    transform: none;
   }
 }

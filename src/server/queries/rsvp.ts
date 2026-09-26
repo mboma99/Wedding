@@ -2,7 +2,9 @@ import type { PublicInvitationRecord } from "@/features/rsvp/types";
 import {
   buildInviteCodeFromToken,
   normalizeInviteCode,
+  normalizeEmailKey,
   normalizeInviteTokenCandidate,
+  normalizePhoneKey,
   RSVP_CODE_LENGTH,
 } from "@/lib/rsvp";
 import { guestsCollection } from "@/server/db/firestore";
@@ -90,9 +92,62 @@ export async function getPublicInvitationByToken(
   };
 }
 
+async function resolveAccessTokenByContact(
+  field: "phone" | "email",
+  matches: (guest: GuestRecord) => boolean,
+): Promise<string | null> {
+  // Phones and emails are stored free-form (spacing, capitals), so they are
+  // matched in memory rather than with an equality query. The guest list is
+  // small enough to scan.
+  const snapshot = await guestsCollection()
+    .select(field, "householdName", "side", "invitation")
+    .get();
+
+  const matchingGuests = toGuestRecords(snapshot.docs).filter(
+    (guest) => guest.invitation && matches(guest),
+  );
+  const accessTokens = new Set<string>();
+
+  for (const guest of matchingGuests) {
+    const publicInvitation = await getPublicInvitationByToken(
+      guest.invitation!.inviteToken,
+    );
+
+    if (publicInvitation) {
+      accessTokens.add(publicInvitation.accessToken);
+    }
+  }
+
+  // Guests in one household sharing a number or email collapse to one
+  // invitation; one shared across separate invitations is ambiguous, so it fails.
+  return accessTokens.size === 1 ? [...accessTokens][0] : null;
+}
+
 export async function resolvePublicInvitationAccessToken(
   lookupValue: string,
 ): Promise<string | null> {
+  const emailKey = normalizeEmailKey(lookupValue);
+
+  if (emailKey) {
+    return resolveAccessTokenByContact(
+      "email",
+      (guest) => normalizeEmailKey(guest.email) === emailKey,
+    );
+  }
+
+  const phoneKey = normalizePhoneKey(lookupValue);
+
+  if (phoneKey) {
+    const accessToken = await resolveAccessTokenByContact(
+      "phone",
+      (guest) => normalizePhoneKey(guest.phone) === phoneKey,
+    );
+
+    if (accessToken) {
+      return accessToken;
+    }
+  }
+
   const tokenCandidate = normalizeInviteTokenCandidate(lookupValue);
   const exactTokenCandidates = Array.from(
     new Set([tokenCandidate, tokenCandidate.toLowerCase()].filter(Boolean)),

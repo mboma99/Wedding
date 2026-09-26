@@ -66,14 +66,6 @@ export function getInvitationHeading(invitation: PublicInvitationRecord) {
     : invitation.primaryGuest.fullName;
 }
 
-export function getInvitationSummary(invitation: PublicInvitationRecord) {
-  return invitation.inviteKind === "HOUSEHOLD"
-    ? `This link covers ${invitation.guests.length} guests in the ${getInvitationHeading(
-        invitation,
-      )} invitation.`
-    : "This link covers one invited guest.";
-}
-
 export function getGuestSideLabel(side: GuestSide) {
   return sideLabels[side];
 }

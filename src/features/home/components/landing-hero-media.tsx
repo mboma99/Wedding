@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { Music, Pause } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 type LandingHeroMediaProps = {
   videos: string[];
+  /** Shown before the first clip plays, and instead of the clips for reduced motion. */
+  poster?: string | null;
   song?: {
     src: string;
     title: string;
@@ -27,11 +29,19 @@ function getVideoType(src: string) {
 
 export function LandingHeroMedia({
   videos,
+  poster = null,
   song = null,
 }: LandingHeroMediaProps) {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
-  const [needsPlaybackResume, setNeedsPlaybackResume] = useState(false);
+  // Looping background footage is ambient motion, so it stays on the still
+  // for people who ask their device to reduce motion.
+  const [reduceMotion, setReduceMotion] = useState(false);
+  // The server can't know the motion setting, so the next clip only starts
+  // downloading once the browser has said it's fine to play.
+  const [canPreloadNext, setCanPreloadNext] = useState(false);
+  const reduceMotionRef = useRef(false);
+  // The song never starts by itself; a guest chooses to play it.
+  const [isPlaying, setIsPlaying] = useState(false);
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pauseTimeoutRef = useRef<number | null>(null);
@@ -49,13 +59,25 @@ export function LandingHeroMedia({
   }
 
   useEffect(() => {
-    const activeVideo = videoRefs.current[activeVideoIndex];
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => {
+      reduceMotionRef.current = query.matches;
+      setReduceMotion(query.matches);
+      setCanPreloadNext(!query.matches);
 
-    if (!activeVideo) {
-      return;
-    }
+      if (query.matches) {
+        for (const video of videoRefs.current) {
+          video?.pause();
+        }
+      } else {
+        const activeVideo = videoRefs.current[activeVideoIndex];
+        if (activeVideo) void startVideoPlayback(activeVideo, false);
+      }
+    };
 
-    void startVideoPlayback(activeVideo, false);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
   }, [activeVideoIndex]);
 
   useEffect(() => {
@@ -67,53 +89,6 @@ export function LandingHeroMedia({
       pauseAllMedia();
     };
   }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-
-    if (!audio || !song) {
-      return;
-    }
-
-    audio.volume = 0.65;
-    audio.muted = false;
-    setIsMuted(false);
-
-    void audio.play().catch(() => {
-      audio.pause();
-      audio.currentTime = 0;
-      setNeedsPlaybackResume(true);
-    });
-  }, [song]);
-
-  useEffect(() => {
-    if (!needsPlaybackResume) {
-      return;
-    }
-
-    const audio = audioRef.current;
-
-    if (!audio) {
-      return;
-    }
-
-    const resumePlayback = () => {
-      audio.muted = isMuted;
-      void audio.play().then(() => {
-        setNeedsPlaybackResume(false);
-      }).catch(() => {
-        return;
-      });
-    };
-
-    window.addEventListener("pointerdown", resumePlayback, { once: true });
-    window.addEventListener("keydown", resumePlayback, { once: true });
-
-    return () => {
-      window.removeEventListener("pointerdown", resumePlayback);
-      window.removeEventListener("keydown", resumePlayback);
-    };
-  }, [isMuted, needsPlaybackResume]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -134,12 +109,9 @@ export function LandingHeroMedia({
         return;
       }
 
-      audio.muted = isMuted;
-      void audio.play().then(() => {
-        shouldResumeAudioRef.current = false;
-      }).catch(() => {
-        setNeedsPlaybackResume(true);
-      });
+      // Coming back to the tab picks the song up again only if it was playing.
+      shouldResumeAudioRef.current = false;
+      void audio.play().catch(() => setIsPlaying(false));
     };
 
     const handlePageHide = () => {
@@ -153,7 +125,7 @@ export function LandingHeroMedia({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("pagehide", handlePageHide);
     };
-  }, [activeVideoIndex, isMuted, song]);
+  }, [activeVideoIndex, song]);
 
   async function startVideoPlayback(
     video: HTMLVideoElement,
@@ -165,6 +137,10 @@ export function LandingHeroMedia({
 
     video.muted = true;
     video.playsInline = true;
+
+    if (reduceMotionRef.current) {
+      return false;
+    }
 
     return video.play().then(() => true).catch(() => false);
   }
@@ -213,7 +189,7 @@ export function LandingHeroMedia({
     }
   }
 
-  async function toggleMute() {
+  async function toggleSong() {
     const audio = audioRef.current;
 
     if (!audio) {
@@ -221,18 +197,12 @@ export function LandingHeroMedia({
     }
 
     if (audio.paused) {
-      const nextMuted = !isMuted;
-      audio.muted = nextMuted;
-      setIsMuted(nextMuted);
-      await audio.play().catch(() => {
-        return;
-      });
-      setNeedsPlaybackResume(false);
+      audio.volume = 0.65;
+      await audio.play().catch(() => undefined);
       return;
     }
 
-    audio.muted = !audio.muted;
-    setIsMuted(audio.muted);
+    audio.pause();
   }
 
   return (
@@ -244,8 +214,7 @@ export function LandingHeroMedia({
             ref={(node) => {
               videoRefs.current[index] = node;
             }}
-            autoPlay={index === 0}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${
               index === activeVideoIndex ? "opacity-100" : "opacity-0"
             }`}
             loop={videos.length === 1}
@@ -259,7 +228,16 @@ export function LandingHeroMedia({
               void transitionToNextVideo(index);
             }}
             playsInline
-            preload="auto"
+            poster={index === 0 ? (poster ?? undefined) : undefined}
+            // Only the playing clip and the one after it download; the rest
+            // wait their turn instead of all loading with the page.
+            preload={
+              index === activeVideoIndex && !reduceMotion
+                ? "auto"
+                : canPreloadNext && index === (activeVideoIndex + 1) % videos.length
+                  ? "auto"
+                  : "none"
+            }
           >
             <source src={video} type={getVideoType(video)} />
           </video>
@@ -269,31 +247,33 @@ export function LandingHeroMedia({
       {song ? (
         <>
           <audio
-            autoPlay
             loop
-            preload="auto"
+            onPause={() => setIsPlaying(false)}
+            onPlay={() => setIsPlaying(true)}
+            preload="none"
             ref={audioRef}
             src={song.src}
           />
           <Button
-            aria-label={isMuted ? `Unmute ${song.title}` : `Mute ${song.title}`}
-            className="absolute bottom-4 left-4 z-20 rounded-full border border-white/30 bg-black/25 px-4 text-white backdrop-blur-md hover:bg-black/35 sm:bottom-6 sm:left-6 sm:px-5"
+            aria-label={isPlaying ? `Pause ${song.title}` : `Play ${song.title}`}
+            aria-pressed={isPlaying}
+            className="absolute bottom-4 left-4 z-20 rounded-full border border-white/30 bg-black/25 px-4 text-white backdrop-blur-md hover:bg-black/35 hover:text-white sm:bottom-6 sm:left-6 sm:px-5"
             onClick={() => {
-              void toggleMute();
+              void toggleSong();
             }}
             size="sm"
             type="button"
             variant="ghost"
           >
-            {isMuted ? (
+            {isPlaying ? (
               <>
-                <VolumeX className="mr-2 h-4 w-4" />
-                Unmute
+                <Pause className="mr-2 h-4 w-4" />
+                Pause song
               </>
             ) : (
               <>
-                <Volume2 className="mr-2 h-4 w-4" />
-                Mute
+                <Music className="mr-2 h-4 w-4" />
+                Play our song
               </>
             )}
           </Button>

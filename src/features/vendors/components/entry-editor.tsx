@@ -6,6 +6,7 @@ import { Check, Plus, Trash2, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   currentMonthKey,
   evenSplit,
@@ -59,9 +60,8 @@ function SourceSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <select
+    <Select
       aria-label="Money from"
-      className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -70,7 +70,7 @@ function SourceSelect({
           {fundingSourceLabels[option]}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -180,8 +180,8 @@ export function EntryTimeline({
                 <div
                   className={
                     isSelected
-                      ? "flex w-[150px] flex-col gap-2 rounded-[1.25rem] border-2 border-primary/40 bg-white p-3"
-                      : "flex w-[150px] flex-col gap-2 rounded-[1.25rem] border border-border/70 bg-white/70 p-3"
+                      ? "flex w-[150px] flex-col gap-2 rounded-xl border-2 border-primary/40 bg-white p-3"
+                      : "flex w-[150px] flex-col gap-2 rounded-xl border border-border/70 bg-white/70 p-3"
                   }
                   style={
                     entry.paid ? { backgroundColor: `${PAID_COLOR}1f` } : undefined
@@ -253,7 +253,7 @@ export function EntryTimeline({
       </div>
 
       {selected ? (
-        <div className="space-y-2.5 rounded-[1.25rem] border border-border/80 bg-muted/25 p-3">
+        <div className="animate-enter space-y-2.5 rounded-xl border border-border/80 bg-muted/25 p-3">
           <div className="flex items-center gap-2">
             <SourceChip source={selected.source} />
             <span className="text-sm text-muted-foreground">
@@ -388,7 +388,7 @@ export function AddEntryForm({ vendorId }: { vendorId: string }) {
   }
 
   return (
-    <div className="space-y-2.5 rounded-[1.25rem] border border-border/80 bg-muted/25 p-3">
+    <div className="animate-enter space-y-2.5 rounded-xl border border-border/80 bg-muted/25 p-3">
       <div className="grid gap-2.5 sm:grid-cols-3">
         <Input
           aria-label="Amount"

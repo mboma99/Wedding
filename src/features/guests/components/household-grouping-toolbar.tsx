@@ -3,6 +3,7 @@
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Home, Unlink, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,6 @@ export function HouseholdGroupingToolbar({
   const [householdName, setHouseholdName] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const sides = Array.from(new Set(selectedGuests.map((guest) => guest.side)));
   const isMixedSides = sides.length > 1;
@@ -48,7 +48,6 @@ export function HouseholdGroupingToolbar({
 
   function runUpdate(nextHouseholdName: string | null) {
     setError(null);
-    setNotice(null);
     setIsPending(true);
 
     startTransition(async () => {
@@ -64,7 +63,8 @@ export function HouseholdGroupingToolbar({
         return;
       }
 
-      setNotice(
+      // A toast, because clearing the selection unmounts this toolbar.
+      toast.success(
         result.householdName
           ? `${result.guestCount} ${
               result.guestCount === 1 ? "guest" : "guests"
@@ -80,11 +80,11 @@ export function HouseholdGroupingToolbar({
   }
 
   return (
-    <div className="sticky bottom-3 z-20 mt-4 rounded-[1.5rem] border border-primary/20 bg-white/95 p-3.5 shadow-lg backdrop-blur sm:bottom-4 sm:p-5">
+    <div className="animate-enter sticky bottom-3 z-20 mt-4 rounded-[var(--card-radius)] border border-primary/20 bg-white/95 p-3.5 shadow-lg backdrop-blur sm:bottom-4 sm:p-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-primary/10 bg-primary/10 text-primary">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary/10 bg-primary/10 text-primary">
               <Home className="h-5 w-5" />
             </div>
             <div>
@@ -103,7 +103,7 @@ export function HouseholdGroupingToolbar({
         </div>
 
         {isMixedSides ? (
-          <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             The selection covers both sides ({sides.map((side) => sideLabels[side]).join(" and ")}).
             A household belongs to one side, so group these separately.
           </p>
@@ -170,16 +170,11 @@ export function HouseholdGroupingToolbar({
         ) : null}
 
         {error ? (
-          <p className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
           </p>
         ) : null}
 
-        {notice ? (
-          <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            {notice}
-          </p>
-        ) : null}
       </div>
     </div>
   );

@@ -58,7 +58,7 @@ export function LineItems({
 
   function Fields({ onSave }: { onSave: () => void }) {
     return (
-      <div className="space-y-2.5 rounded-[1.25rem] border border-border/80 bg-white/70 p-3">
+      <div className="animate-enter space-y-2.5 rounded-xl border border-border/80 bg-white/70 p-3">
         <Input
           aria-label="Covers"
           onChange={(event) => setDescription(event.target.value)}

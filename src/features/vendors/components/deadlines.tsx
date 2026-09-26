@@ -27,7 +27,7 @@ export function Deadlines({ vendors }: { vendors: Vendor[] }) {
 
         return (
           <li
-            className="flex flex-wrap items-center justify-between gap-2 rounded-[1.25rem] border border-border/70 bg-muted/20 px-3.5 py-2.5"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2.5"
             key={vendor.id}
           >
             <div className="flex min-w-0 items-center gap-2">

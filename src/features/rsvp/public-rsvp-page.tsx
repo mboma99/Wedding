@@ -1,25 +1,40 @@
-import { AlertTriangle } from "lucide-react";
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PublicRsvpForm } from "@/features/rsvp/components/public-rsvp-form";
+import { InvitationExperience } from "@/features/rsvp/components/invitation-experience";
+import { RsvpLookupForm } from "@/features/rsvp/components/rsvp-lookup-form";
+import { cn } from "@/lib/utils";
 import { getPublicInvitationByToken } from "@/server/queries/rsvp";
+
+/** Warm paper backdrop, so the invitation reads as stationery on a table. */
+function InvitationBackdrop({ children }: { children: React.ReactNode }) {
+  return (
+    <main
+      className={cn(
+        "min-h-dvh bg-[#e9e1d5] bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.7),transparent_60%),radial-gradient(ellipse_at_bottom,rgba(214,196,172,0.45),transparent_55%)] [--control-radius:0.75rem]",
+      )}
+    >
+      {children}
+    </main>
+  );
+}
 
 function InvalidInvitationState() {
   return (
-    <main className="container flex min-h-screen items-center py-8 sm:py-12">
-      <Card className="mx-auto w-full max-w-2xl border-amber-200 bg-white/95">
-        <CardHeader className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-700">
-            <AlertTriangle className="h-6 w-6" />
+    <InvitationBackdrop>
+      <div className="flex min-h-dvh items-center justify-center px-4 py-12">
+        <div className="animate-enter w-full max-w-md rounded-[4px] bg-[#fbf8f2] px-6 py-10 shadow-[0_30px_80px_-30px_rgba(60,40,20,0.45)] sm:px-10">
+          <div className="space-y-2 text-center">
+            <h1 className="font-serif text-3xl text-primary">
+              We couldn&apos;t open this invitation
+            </h1>
+            <p className="text-sm leading-6 text-muted-foreground">
+              The link may be incomplete. You can still find it below.
+            </p>
           </div>
-          <CardTitle className="mt-4">This RSVP link is unavailable.</CardTitle>
-          <CardDescription>
-            The RSVP code or link may be invalid, expired, or not yet ready for
-            response. Please contact James or Lisa directly for help.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    </main>
+          <div className="mt-8">
+            <RsvpLookupForm />
+          </div>
+        </div>
+      </div>
+    </InvitationBackdrop>
   );
 }
 
@@ -32,11 +47,9 @@ export async function PublicRsvpPage({ token }: { token: string }) {
     }
 
     return (
-      <main className="container py-6 sm:py-10">
-        <div className="mx-auto max-w-4xl">
-          <PublicRsvpForm invitation={invitation} />
-        </div>
-      </main>
+      <InvitationBackdrop>
+        <InvitationExperience invitation={invitation} />
+      </InvitationBackdrop>
     );
   } catch {
     return <InvalidInvitationState />;

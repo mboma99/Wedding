@@ -2,6 +2,7 @@
 
 import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ export function SavingsEditor({
   }
 
   return (
-    <div className="space-y-2.5 rounded-[1.25rem] border border-border/80 bg-muted/25 p-3">
+    <div className="animate-enter space-y-2.5 rounded-xl border border-border/80 bg-muted/25 p-3">
       <div className="grid gap-2.5 sm:grid-cols-2">
         <label className="space-y-1.5">
           <span className="text-xs font-medium text-muted-foreground">Lisa saved</span>
@@ -70,6 +71,7 @@ export function SavingsEditor({
                 return;
               }
 
+              toast.success("Savings updated");
               setIsOpen(false);
               router.refresh();
             });

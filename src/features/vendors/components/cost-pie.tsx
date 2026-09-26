@@ -26,7 +26,7 @@ function ChartTooltip({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-white/95 px-3 py-2 shadow-soft">
+    <div className="rounded-lg border border-border bg-white/95 px-3 py-2 shadow-soft">
       <p className="text-sm font-semibold text-primary">{slice.category}</p>
       <p className="text-sm text-muted-foreground">{formatCurrency(slice.amount)}</p>
     </div>

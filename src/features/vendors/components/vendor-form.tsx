@@ -3,9 +3,11 @@
 import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { Vendor } from "@/domain/vendors";
 import {
@@ -31,6 +33,7 @@ function VendorFields({ vendor, onClose }: VendorFormProps) {
   const [deadline, setDeadline] = useState(vendor?.finalPaymentDeadline ?? "");
   const [paymentDetails, setPaymentDetails] = useState(vendor?.paymentDetails ?? "");
   const [isPending, setIsPending] = useState(false);
+  const [isConfirmingRemove, setIsConfirmingRemove] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function save() {
@@ -56,13 +59,20 @@ function VendorFields({ vendor, onClose }: VendorFormProps) {
         return;
       }
 
+      toast.success(vendor ? `Saved ${name.trim() || vendor.name}` : `Added ${name.trim()}`);
       onClose?.();
       router.refresh();
     });
   }
 
   function remove() {
-    if (!vendor || !window.confirm(`Remove ${vendor.name}?`)) {
+    if (!vendor) {
+      return;
+    }
+
+    // First press arms the button; the second removes.
+    if (!isConfirmingRemove) {
+      setIsConfirmingRemove(true);
       return;
     }
 
@@ -70,19 +80,21 @@ function VendorFields({ vendor, onClose }: VendorFormProps) {
     startTransition(async () => {
       const result = await deleteVendorAction(vendor.id);
       setIsPending(false);
+      setIsConfirmingRemove(false);
 
       if (!result.success) {
         setError(result.message);
         return;
       }
 
+      toast.success(`Removed ${vendor.name}`);
       onClose?.();
       router.refresh();
     });
   }
 
   return (
-    <div className="space-y-2.5 rounded-[1.25rem] border border-border/80 bg-muted/25 p-3">
+    <div className="animate-enter space-y-2.5 rounded-xl border border-border/80 bg-muted/25 p-3">
       <div className="grid gap-2.5 sm:grid-cols-2">
         <label className="space-y-1.5">
           <span className="text-xs font-medium text-muted-foreground">Name</span>
@@ -90,8 +102,7 @@ function VendorFields({ vendor, onClose }: VendorFormProps) {
         </label>
         <label className="space-y-1.5">
           <span className="text-xs font-medium text-muted-foreground">Category</span>
-          <select
-            className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          <Select
             onChange={(event) => setCategory(event.target.value)}
             value={category}
           >
@@ -100,7 +111,7 @@ function VendorFields({ vendor, onClose }: VendorFormProps) {
                 {option}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="space-y-1.5">
           <span className="text-xs font-medium text-muted-foreground">Cost (£)</span>
@@ -145,13 +156,15 @@ function VendorFields({ vendor, onClose }: VendorFormProps) {
         {vendor ? (
           <Button
             disabled={isPending}
+            onBlur={() => setIsConfirmingRemove(false)}
             onClick={remove}
             size="sm"
             type="button"
-            variant="destructive"
+            variant={isConfirmingRemove ? "destructive" : "ghost"}
+            className={isConfirmingRemove ? undefined : "text-rose-700 hover:bg-rose-50"}
           >
             <Trash2 className="mr-1.5 h-4 w-4" />
-            Remove
+            {isConfirmingRemove ? `Remove ${vendor.name}?` : "Remove"}
           </Button>
         ) : null}
       </div>

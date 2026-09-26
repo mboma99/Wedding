@@ -1,5 +1,9 @@
 export const RSVP_CODE_LENGTH = 8;
 
+// Numbers are compared on their last 9 digits so "07123 456789",
+// "+44 7123 456789" and "0044 7123 456789" all resolve to the same key.
+const PHONE_KEY_LENGTH = 9;
+
 function getPathSegments(pathname: string) {
   return pathname
     .split("/")
@@ -55,6 +59,23 @@ export function normalizeInviteCode(value: string) {
   return extractInviteLookupValue(value).replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 }
 
+/** An email typed into the RSVP lookup, compared case-insensitively. */
+export function normalizeEmailKey(value: string | null | undefined) {
+  const trimmed = value?.trim().toLowerCase() ?? "";
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
+}
+
+export function normalizePhoneKey(value: string | null | undefined) {
+  if (!value || !/^[+0-9()\-\s.]+$/.test(value.trim())) {
+    return null;
+  }
+
+  const digits = value.replace(/\D/g, "");
+
+  return digits.length >= PHONE_KEY_LENGTH ? digits.slice(-PHONE_KEY_LENGTH) : null;
+}
+
 export function buildInvitationShareMessage({
   inviteKind,
   guestName,
@@ -75,7 +96,7 @@ export function buildInvitationShareMessage({
         } to their traditional wedding.`
       : "James and Lisa would love to invite you to their traditional wedding.";
 
-  return `${greeting} You can RSVP via this link: ${inviteUrl}. Your RSVP code is ${formatInviteCode(
+  return `${greeting} You can RSVP via this link: ${inviteUrl}, or enter your phone number on the wedding website. Your RSVP code is ${formatInviteCode(
     inviteCode,
   )}.`;
 }
