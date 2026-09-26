@@ -1,14 +1,16 @@
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const accentStyles = {
-  neutral: "border-primary/10 bg-primary/10 text-primary",
-  james: "border-james/10 bg-james/10 text-james",
-  lisa: "border-lisa/10 bg-lisa/10 text-lisa",
-  success: "border-emerald-500/10 bg-emerald-500/10 text-emerald-700",
-  warning: "border-amber-500/10 bg-amber-500/10 text-amber-700",
+  neutral: "bg-primary/[0.07] text-primary",
+  james: "bg-james/10 text-james",
+  lisa: "bg-lisa/10 text-lisa",
+  success: "bg-emerald-500/10 text-emerald-700",
+  warning: "bg-amber-500/10 text-amber-700",
 } as const;
 
 type KpiCardProps = {
@@ -16,6 +18,10 @@ type KpiCardProps = {
   value: string;
   icon: LucideIcon;
   accent?: keyof typeof accentStyles;
+  /** Short context under the figure, e.g. "of 78 guests". */
+  detail?: string;
+  /** Makes the whole tile a link into the matching filtered list. */
+  href?: string;
 };
 
 export function KpiCard({
@@ -23,27 +29,50 @@ export function KpiCard({
   value,
   icon: Icon,
   accent = "neutral",
+  detail,
+  href,
 }: KpiCardProps) {
-  return (
-    <Card className="overflow-hidden border-white/80 bg-white/85">
-      <CardContent className="flex items-start justify-between gap-2 p-4 sm:gap-3 sm:p-5">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            {title}
-          </p>
-          <p className="text-2xl font-semibold tracking-tight text-primary sm:text-4xl">
-            {value}
-          </p>
-        </div>
-        <div
+  const body = (
+    <CardContent className="flex h-full flex-col gap-3 p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <span
           className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border sm:h-12 sm:w-12 sm:rounded-2xl",
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
             accentStyles[accent],
           )}
         >
-          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div className="mt-auto flex items-end justify-between gap-2">
+        <div>
+          <p className="text-2xl font-semibold tracking-tight text-primary sm:text-3xl">
+            {value}
+          </p>
+          {detail ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p>
+          ) : null}
         </div>
-      </CardContent>
-    </Card>
+        {href ? (
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5" />
+        ) : null}
+      </div>
+    </CardContent>
+  );
+
+  if (!href) {
+    return <Card className="h-full">{body}</Card>;
+  }
+
+  return (
+    <Link
+      className="group block h-full rounded-[var(--card-radius)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      href={href}
+    >
+      <Card className="h-full transition-colors group-hover:border-primary/25 group-hover:bg-white">
+        {body}
+      </Card>
+    </Link>
   );
 }

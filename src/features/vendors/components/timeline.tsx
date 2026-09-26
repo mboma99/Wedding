@@ -19,8 +19,8 @@ export function Timeline({ months }: { months: TimelineMonthView[] }) {
         <li
           className={
             month.month === thisMonth
-              ? "rounded-[1.5rem] border-2 border-primary/30 bg-white/85 p-4"
-              : "rounded-[1.5rem] border border-border/80 bg-white/85 p-4"
+              ? "rounded-xl border-2 border-primary/30 bg-white/85 p-4"
+              : "rounded-xl border border-border/80 bg-white/85 p-4"
           }
           key={month.month}
         >

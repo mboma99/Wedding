@@ -1,9 +1,8 @@
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 
-import { AppShellNav } from "@/components/shared/app-shell-nav";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getEmptyGuestFormValues,
   type GuestFormInitialValues,
@@ -33,33 +32,49 @@ export function GuestFormPage({
   inviteKind,
 }: GuestFormPageProps) {
   const isCreateMode = mode === "create";
+  const hasInvite = !isCreateMode && publicRsvpLink && publicRsvpCode && inviteKind;
 
   return (
-    <main className="container space-y-6 py-6 sm:space-y-8 sm:py-10">
-      <section className="">
-        <Card className="overflow-hidden border-white/80 bg-white/85">
-          <CardContent className="space-y-6 p-5 sm:space-y-8 sm:p-8">
-            <AppShellNav currentPath="/admin/guests" />
-            <div className="space-y-4">
-              <Badge variant="outline" className="w-fit bg-white/80">
-                {isCreateMode ? "Create guest" : "Edit guest"}
-              </Badge>
-              <div className="space-y-3">
-                <h1 className="font-serif text-3xl leading-tight text-primary sm:text-6xl sm:leading-none">
-                  {isCreateMode
-                    ? "Add a guest"
-                    : "Update guest and invitation details."}
-                </h1>
-                <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                  {isCreateMode
-                    ? "Capture the guest profile, invitation status, RSVP state, and any contact channels already available."
-                    : "Keep guest contact details, RSVP progress, plus one access, and planning notes current from a single edit screen."}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+    <main className="container max-w-4xl space-y-5 py-6 sm:space-y-6 sm:py-8">
+      <PageHeader
+        back={{ href: "/admin/guests", label: "Guests" }}
+        meta={
+          isCreateMode
+            ? "Add their details now; contact info and RSVP can be filled in later."
+            : [initialValues.relation, initialValues.householdName]
+                .filter(Boolean)
+                .join(" · ") || undefined
+        }
+        title={isCreateMode ? "Add guest" : initialValues.fullName || "Edit guest"}
+      />
+
+      {hasInvite ? (
+        <div className="flex flex-col gap-3 rounded-[var(--card-radius)] border border-border/80 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm">
+            <p className="text-muted-foreground">
+              {inviteKind === "HOUSEHOLD" ? "Household RSVP code" : "RSVP code"}
+            </p>
+            <p className="font-mono text-base font-semibold tracking-wider text-primary">
+              {formatInviteCode(publicRsvpCode)}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={publicRsvpLink} rel="noreferrer" target="_blank">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Open RSVP page
+              </Link>
+            </Button>
+            <ShareInvitationButton
+              guestName={initialValues.fullName}
+              householdName={initialValues.householdName || null}
+              inviteCode={publicRsvpCode}
+              inviteKind={inviteKind}
+              invitePath={publicRsvpLink}
+            />
+          </div>
+        </div>
+      ) : null}
 
       <GuestForm
         guestId={guestId}

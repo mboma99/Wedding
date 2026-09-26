@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Banknote, PiggyBank, Wallet } from "lucide-react";
 
-import { AppShellNav } from "@/components/shared/app-shell-nav";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -46,7 +47,7 @@ function PotCard({
   stillHeld: number;
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-border/80 bg-white/85 p-4">
+    <div className="rounded-xl border border-border/80 bg-white p-4">
       <div className="flex items-center gap-2">
         <SourceDot source={source} />
         <p className="font-semibold text-primary">{name}</p>
@@ -109,15 +110,18 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
 
     return (
       <main className="container space-y-6 py-6 sm:space-y-8 sm:py-10">
-        <Card className="overflow-hidden border-white/80 bg-white/85">
-          <CardContent className="space-y-4 p-4 sm:p-8">
-            <AppShellNav currentPath="/admin/vendors" />
-            <h1 className="font-serif text-2xl leading-tight text-primary sm:text-5xl sm:leading-none">
-              Vendors
-            </h1>
-            <FundingLegend />
-          </CardContent>
-        </Card>
+        <PageHeader
+          meta={
+            <div className="space-y-2">
+              <p>
+                {allVendors.length} {allVendors.length === 1 ? "vendor" : "vendors"} ·{" "}
+                {formatCurrency(totals.totalCost)} in total
+              </p>
+              <FundingLegend />
+            </div>
+          }
+          title="Vendors"
+        />
 
         <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           <KpiCard
@@ -147,7 +151,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-2">
-          <Card className="border-white/80 bg-white/85">
+          <Card>
             <CardHeader>
               <CardTitle>Deadlines</CardTitle>
             </CardHeader>
@@ -156,7 +160,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
             </CardContent>
           </Card>
 
-          <Card className="border-white/80 bg-white/85">
+          <Card>
             <CardHeader>
               <CardTitle>Cost breakdown</CardTitle>
             </CardHeader>
@@ -166,7 +170,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
           </Card>
         </section>
 
-        <Card className="border-white/80 bg-white/85">
+        <Card>
           <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle>Savings</CardTitle>
             <SavingsEditor james={james.saved} lisa={lisa.saved} />
@@ -190,7 +194,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
               source={FundingSource.JAMES}
               stillHeld={james.stillHeld}
             />
-            <div className="rounded-[1.5rem] border border-border/80 bg-white/85 p-4">
+            <div className="rounded-xl border border-border/80 bg-white p-4">
               <div className="flex items-center gap-2">
                 <SourceDot source={FundingSource.JOINT} />
                 <p className="font-semibold text-primary">Joint</p>
@@ -210,7 +214,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
         </Card>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex gap-1 rounded-full border border-border bg-white/85 p-1">
+        <div className="inline-flex gap-1 rounded-lg bg-muted/70 p-1" role="tablist">
           {(
             [
               { key: "vendors", label: "By vendor", href: "/admin/vendors" },
@@ -218,11 +222,13 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
             ] as const
           ).map((tab) => (
             <Link
+              aria-selected={view === tab.key}
               className={
                 view === tab.key
-                  ? "rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-                  : "rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/60"
+                  ? "rounded-md bg-white px-3.5 py-1.5 text-sm font-medium text-primary shadow-sm"
+                  : "rounded-md px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
               }
+              role="tab"
               href={tab.href}
               key={tab.key}
             >
@@ -235,7 +241,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
 
         {view === "timeline" ? (
           <div className="space-y-6">
-            <Card className="border-white/80 bg-white/85">
+            <Card>
               <CardHeader>
                 <CardTitle>Payments by month</CardTitle>
               </CardHeader>
@@ -247,7 +253,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
           </div>
         ) : (
           board.groups.map((group) => (
-            <Card className="border-white/80 bg-white/85" key={group.category}>
+            <Card key={group.category}>
               <CardHeader className="gap-1">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <CardTitle>{group.category}</CardTitle>
@@ -263,7 +269,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
                 ))}
 
                 {group.sharedLineItems.length ? (
-                  <details className="rounded-[1.25rem] border border-dashed border-border bg-muted/20 p-3">
+                  <details className="rounded-xl border border-dashed border-border bg-muted/20 p-3">
                     <summary className="cursor-pointer text-sm font-medium text-primary">
                       Not split between vendors ({group.sharedLineItems.length})
                     </summary>
@@ -293,9 +299,13 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
   } catch {
     return (
       <main className="container py-8 sm:py-12">
-        <Card className="border-amber-200 bg-white/90">
+        <Card className="border-amber-200">
           <CardHeader>
-            <CardTitle>Vendors could not be loaded.</CardTitle>
+            <CardTitle>Vendors couldn&apos;t load.</CardTitle>
+            <CardDescription>
+              We couldn&apos;t reach the database. Check your connection and refresh
+              the page.
+            </CardDescription>
           </CardHeader>
         </Card>
       </main>

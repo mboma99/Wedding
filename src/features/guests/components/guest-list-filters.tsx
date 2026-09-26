@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
+  buildGuestListHref,
   groupTypeLabels,
   groupTypeOptions,
   guestSortFieldLabels,
@@ -38,188 +39,199 @@ function SelectField({
   children: ReactNode;
 }) {
   return (
-    <label className="space-y-2">
-      <span className="text-sm font-medium text-muted-foreground">{label}</span>
-      <select
-        name={name}
-        defaultValue={defaultValue ?? ""}
-        className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
-      >
+    <label className="space-y-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <Select defaultValue={defaultValue ?? ""} name={name}>
         {children}
-      </select>
+      </Select>
     </label>
   );
 }
 
 export function GuestListFilters({ filters }: GuestListFiltersProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const activeFilters: string[] = [];
+
+  // Each chip links to the same list minus that one filter.
+  const activeFilters: { key: string; label: string; href: string }[] = [];
 
   if (filters.q) {
-    activeFilters.push(`Search: ${filters.q}`);
+    activeFilters.push({
+      key: "q",
+      label: `“${filters.q}”`,
+      href: buildGuestListHref(filters, { q: "", page: 1 }),
+    });
   }
 
   if (filters.side) {
-    activeFilters.push(sideLabels[filters.side]);
+    activeFilters.push({
+      key: "side",
+      label: sideLabels[filters.side],
+      href: buildGuestListHref(filters, { side: undefined, page: 1 }),
+    });
   }
 
   if (filters.groupType) {
-    activeFilters.push(groupTypeLabels[filters.groupType]);
+    activeFilters.push({
+      key: "groupType",
+      label: groupTypeLabels[filters.groupType],
+      href: buildGuestListHref(filters, { groupType: undefined, page: 1 }),
+    });
   }
 
   if (filters.inviteStatus) {
-    activeFilters.push(inviteStatusLabels[filters.inviteStatus]);
+    activeFilters.push({
+      key: "inviteStatus",
+      label: `Invite: ${inviteStatusLabels[filters.inviteStatus]}`,
+      href: buildGuestListHref(filters, { inviteStatus: undefined, page: 1 }),
+    });
   }
 
   if (filters.rsvpStatus) {
-    activeFilters.push(rsvpStatusLabels[filters.rsvpStatus]);
+    activeFilters.push({
+      key: "rsvpStatus",
+      label: `RSVP: ${rsvpStatusLabels[filters.rsvpStatus]}`,
+      href: buildGuestListHref(filters, { rsvpStatus: undefined, page: 1 }),
+    });
   }
 
+  const panelFilterCount = activeFilters.filter((filter) => filter.key !== "q").length;
+
   return (
-    <Card className="border-white/80 bg-white/85">
-      <CardContent className="space-y-6 p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-muted/50">
-              <SlidersHorizontal className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-primary">Search and filter</p>
-              <p className="text-sm text-muted-foreground">
-                Narrow the guest list by side, group, or invitation progress.
-              </p>
-            </div>
-          </div>
-          <Button
-            className="w-full sm:w-auto"
-            onClick={() => setIsExpanded((current) => !current)}
-            type="button"
-            variant="outline"
+    <form action="/admin/guests" className="space-y-3">
+      <input type="hidden" name="page" value="1" />
+
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <label className="sr-only" htmlFor="guest-search">
+            Search guests
+          </label>
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="bg-white pl-10"
+            defaultValue={filters.q}
+            id="guest-search"
+            name="q"
+            placeholder="Search name, household, relation, phone or email"
+          />
+        </div>
+        <Button
+          aria-expanded={isExpanded}
+          className={cn("h-11 shrink-0", isExpanded && "bg-muted")}
+          onClick={() => setIsExpanded((current) => !current)}
+          type="button"
+          variant="outline"
+        >
+          <SlidersHorizontal className="h-4 w-4 sm:mr-2" />
+          <span className="sr-only sm:not-sr-only">Filters</span>
+          {panelFilterCount ? (
+            <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[11px] leading-5 text-primary-foreground">
+              {panelFilterCount}
+            </span>
+          ) : null}
+        </Button>
+      </div>
+
+      {/* Kept mounted while hidden so the selects still submit with a search. */}
+      <div
+        className={cn(
+          "space-y-4 rounded-[var(--card-radius)] border border-border/80 bg-card p-4",
+          !isExpanded && "hidden",
+        )}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SelectField defaultValue={filters.side} label="Side" name="side">
+            <option value="">All sides</option>
+            {guestSideOptions.map((side) => (
+              <option key={side} value={side}>
+                {sideLabels[side]}
+              </option>
+            ))}
+          </SelectField>
+
+          <SelectField defaultValue={filters.groupType} label="Group" name="groupType">
+            <option value="">All groups</option>
+            {groupTypeOptions.map((groupType) => (
+              <option key={groupType} value={groupType}>
+                {groupTypeLabels[groupType]}
+              </option>
+            ))}
+          </SelectField>
+
+          <SelectField
+            defaultValue={filters.inviteStatus}
+            label="Invitation"
+            name="inviteStatus"
           >
-            {isExpanded ? (
-              <>
-                Hide filters
-                <ChevronUp className="ml-2 h-4 w-4" />
-              </>
-            ) : (
-              <>
-                Show filters
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
+            <option value="">Any invitation status</option>
+            {inviteStatusOptions.map((status) => (
+              <option key={status} value={status}>
+                {inviteStatusLabels[status]}
+              </option>
+            ))}
+          </SelectField>
+
+          <SelectField defaultValue={filters.rsvpStatus} label="RSVP" name="rsvpStatus">
+            <option value="">Any RSVP status</option>
+            {rsvpStatusOptions.map((status) => (
+              <option key={status} value={status}>
+                {rsvpStatusLabels[status]}
+              </option>
+            ))}
+          </SelectField>
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end lg:grid-cols-[1fr_1fr_2fr]">
+          <SelectField defaultValue={filters.sortBy} label="Sort by" name="sortBy">
+            {guestSortFieldOptions.map((sortField) => (
+              <option key={sortField} value={sortField}>
+                {guestSortFieldLabels[sortField]}
+              </option>
+            ))}
+          </SelectField>
 
+          <SelectField
+            defaultValue={filters.sortDirection}
+            label="Order"
+            name="sortDirection"
+          >
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </SelectField>
 
-        {isExpanded ? (
-          <form action="/admin/guests" className="space-y-4">
-            <div className="grid gap-4 lg:grid-cols-[1.3fr_repeat(3,minmax(0,1fr))]">
-              <label className="space-y-2 lg:col-span-4">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Search guests
-                </span>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    className="pl-10"
-                    defaultValue={filters.q}
-                    name="q"
-                    placeholder="Search by name, household, relation, phone, or email"
-                  />
-                </div>
-              </label>
-            </div>
+          <div className="flex gap-2 sm:justify-end">
+            <Button asChild className="flex-1 sm:flex-none" variant="ghost">
+              <Link href="/admin/guests">Reset</Link>
+            </Button>
+            <Button className="flex-1 sm:flex-none" type="submit">
+              Apply filters
+            </Button>
+          </div>
+        </div>
+      </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <SelectField
-                name="side"
-                label="Side"
-                defaultValue={filters.side}
-              >
-                <option value="">All sides</option>
-                {guestSideOptions.map((side) => (
-                  <option key={side} value={side}>
-                    {sideLabels[side]}
-                  </option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                name="groupType"
-                label="Group type"
-                defaultValue={filters.groupType}
-              >
-                <option value="">All groups</option>
-                {groupTypeOptions.map((groupType) => (
-                  <option key={groupType} value={groupType}>
-                    {groupTypeLabels[groupType]}
-                  </option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                name="inviteStatus"
-                label="Invitation status"
-                defaultValue={filters.inviteStatus}
-              >
-                <option value="">All invitation statuses</option>
-                {inviteStatusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {inviteStatusLabels[status]}
-                  </option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                name="rsvpStatus"
-                label="RSVP status"
-                defaultValue={filters.rsvpStatus}
-              >
-                <option value="">All RSVP statuses</option>
-                {rsvpStatusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {rsvpStatusLabels[status]}
-                  </option>
-                ))}
-              </SelectField>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_auto]">
-              <SelectField
-                name="sortBy"
-                label="Sort by"
-                defaultValue={filters.sortBy}
-              >
-                {guestSortFieldOptions.map((sortField) => (
-                  <option key={sortField} value={sortField}>
-                    {guestSortFieldLabels[sortField]}
-                  </option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                name="sortDirection"
-                label="Direction"
-                defaultValue={filters.sortDirection}
-              >
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-              </SelectField>
-
-              <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end">
-                <input type="hidden" name="page" value="1" />
-                <Button className="w-full sm:flex-1" type="submit">
-                  Apply
-                </Button>
-                <Button asChild className="w-full sm:w-auto" variant="outline">
-                  <Link href="/admin/guests">Clear</Link>
-                </Button>
-              </div>
-            </div>
-          </form>
-        ) : null}
-      </CardContent>
-    </Card>
+      {activeFilters.length ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {activeFilters.map((filter) => (
+            <Link
+              aria-label={`Remove filter ${filter.label}`}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-white py-1 pl-2.5 pr-1.5 text-xs font-medium text-primary transition-colors hover:border-primary/30"
+              href={filter.href}
+              key={filter.key}
+            >
+              {filter.label}
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </Link>
+          ))}
+          {activeFilters.length > 1 ? (
+            <Link
+              className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+              href="/admin/guests"
+            >
+              Clear all
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+    </form>
   );
 }

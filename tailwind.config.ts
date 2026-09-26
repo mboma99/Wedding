@@ -36,6 +36,7 @@ const config: Config = {
           DEFAULT: "hsl(var(--primary) / <alpha-value>)",
           foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
         },
+        destructive: "hsl(var(--destructive) / <alpha-value>)",
         james: {
           DEFAULT: "hsl(var(--james) / <alpha-value>)",
           foreground: "hsl(var(--james-foreground) / <alpha-value>)",

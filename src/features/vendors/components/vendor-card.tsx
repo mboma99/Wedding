@@ -28,7 +28,7 @@ export function VendorCard({ vendor }: { vendor: Vendor }) {
   const overAllocated = vendor.paid + vendor.setAside - vendor.totalCost;
 
   return (
-    <div className="rounded-[1.5rem] border border-border/80 bg-white/85 p-4 sm:p-5">
+    <div className="rounded-xl border border-border/80 bg-white/85 p-4 sm:p-5">
       <VendorHeader cost={formatCurrency(vendor.totalCost)} vendor={vendor} />
 
       <div className="mt-3">
@@ -65,7 +65,7 @@ export function VendorCard({ vendor }: { vendor: Vendor }) {
         <AddEntryForm vendorId={vendor.id} />
       </div>
 
-      <details className="mt-3 rounded-[1.25rem] border border-border/70 bg-muted/20 p-3">
+      <details className="mt-3 rounded-xl border border-border/70 bg-muted/20 p-3">
         <summary className="cursor-pointer text-sm font-medium text-primary">
           <ReceiptText className="mr-2 inline h-4 w-4" />
           Covers ({vendor.lineItems.length})
@@ -76,7 +76,7 @@ export function VendorCard({ vendor }: { vendor: Vendor }) {
       </details>
 
       {vendor.paymentDetails ? (
-        <details className="mt-2 rounded-[1.25rem] border border-border/70 bg-muted/20 p-3">
+        <details className="mt-2 rounded-xl border border-border/70 bg-muted/20 p-3">
           <summary className="cursor-pointer text-sm font-medium text-primary">
             <Landmark className="mr-2 inline h-4 w-4" />
             Bank details

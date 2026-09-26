@@ -11,24 +11,21 @@ import {
 import { ExternalLink, Mail, Pencil, Phone } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { DeleteGuestButton } from "@/features/guests/components/delete-guest-button";
 import { ShareInvitationButton } from "@/features/guests/components/share-invitation-button";
 import {
-  GroupTypeBadge,
-  GuestTypeBadge,
   InviteStatusBadge,
   RsvpStatusBadge,
-  SideBadge,
 } from "@/features/guests/components/guest-badges";
 import { HouseholdGroupingToolbar } from "@/features/guests/components/household-grouping-toolbar";
-import type { GuestListItem, HouseholdOption } from "@/features/guests/types";
+import {
+  groupTypeLabels,
+  guestTypeLabels,
+  inviteStatusLabels,
+  type GuestListItem,
+  type HouseholdOption,
+} from "@/features/guests/types";
 import { cn } from "@/lib/utils";
 
 type GuestTableProps = {
@@ -63,26 +60,25 @@ function SelectGuestCheckbox({
 function ContactDetails({
   email,
   phone,
-  compact = false,
-}: Pick<GuestListItem, "email" | "phone"> & { compact?: boolean }) {
-  // Most guests have no contact details yet, and "No email / No phone"
-  // placeholders doubled the height of every card on a phone.
-  if (compact && !email && !phone) {
-    return null;
+}: Pick<GuestListItem, "email" | "phone">) {
+  // Most guests have no contact details yet; a dash keeps rows one line tall
+  // instead of two "No email / No phone" placeholders.
+  if (!email && !phone) {
+    return <span className="text-sm text-muted-foreground/70">—</span>;
   }
 
   return (
-    <div className="space-y-2 text-sm text-muted-foreground">
-      {email || !compact ? (
+    <div className="space-y-1 text-sm text-muted-foreground">
+      {phone ? (
         <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4 shrink-0 text-primary" />
-          <span className="break-all">{email ?? "No email"}</span>
+          <Phone className="h-3.5 w-3.5 shrink-0" />
+          <span className="break-all">{phone}</span>
         </div>
       ) : null}
-      {phone || !compact ? (
+      {email ? (
         <div className="flex items-center gap-2">
-          <Phone className="h-4 w-4 shrink-0 text-primary" />
-          <span className="break-all">{phone ?? "No phone"}</span>
+          <Mail className="h-3.5 w-3.5 shrink-0" />
+          <span className="break-all">{email}</span>
         </div>
       ) : null}
     </div>
@@ -93,20 +89,48 @@ function InvitationDetails({
   invitation,
 }: Pick<GuestListItem, "invitation">) {
   if (!invitation) {
-    return <div className="text-sm text-muted-foreground">No invitation</div>;
+    return <span className="text-sm text-muted-foreground/70">—</span>;
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1">
       <InviteStatusBadge status={invitation.inviteStatus} />
       {invitation.inviteKind === "HOUSEHOLD" ? (
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          {`Household invite · ${invitation.householdGuestCount} guests`}
-        </div>
+        <p className="text-xs text-muted-foreground">
+          {`Household · ${invitation.householdGuestCount} guests`}
+        </p>
       ) : null}
       {invitation.plusOneAllowed ? (
-        <div className="text-xs text-muted-foreground">Plus one enabled</div>
+        <p className="text-xs text-muted-foreground">Plus one</p>
       ) : null}
+    </div>
+  );
+}
+
+function GuestIdentity({ guest }: { guest: GuestListItem }) {
+  const secondary = [guest.relation, guest.householdName].filter(Boolean).join(" · ");
+
+  return (
+    <div className="flex min-w-0 items-start gap-2.5">
+      <span
+        aria-label={guest.side === "JAMES" ? "James side" : "Lisa side"}
+        className={cn(
+          "mt-1.5 h-2 w-2 shrink-0 rounded-sm",
+          guest.side === "JAMES" ? "bg-james" : "bg-lisa",
+        )}
+        role="img"
+      />
+      <div className="min-w-0">
+        <Link
+          className="font-semibold text-primary underline-offset-4 hover:underline"
+          href={`/admin/guests/${guest.id}/edit`}
+        >
+          {guest.fullName}
+        </Link>
+        {secondary ? (
+          <p className="truncate text-sm text-muted-foreground">{secondary}</p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -119,9 +143,10 @@ function GuestActions({ guest }: { guest: GuestListItem }) {
       : "Open RSVP page";
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex items-center justify-end gap-0.5">
       {guest.invitation ? (
         <ShareInvitationButton
+          variant="ghost"
           guestName={guest.fullName}
           householdName={guest.householdName}
           iconOnly
@@ -130,7 +155,7 @@ function GuestActions({ guest }: { guest: GuestListItem }) {
           invitePath={`/rsvp/${guest.invitation.inviteToken}`}
         />
       ) : null}
-      <Button asChild size="icon" variant="outline">
+      <Button asChild size="icon" variant="ghost">
         <Link
           aria-label={`Edit ${guest.fullName}`}
           href={`/admin/guests/${guest.id}/edit`}
@@ -157,6 +182,7 @@ function GuestActions({ guest }: { guest: GuestListItem }) {
         guestName={guest.fullName}
         iconOnly
         label="Delete"
+        variant="ghost"
       />
     </div>
   );
@@ -168,83 +194,54 @@ function MobileGuestCards({
   onToggle,
 }: GuestTableProps & SelectionProps) {
   return (
-    <div className="grid gap-3 md:hidden">
+    <ul className="divide-y divide-border/70 md:hidden">
       {guests.map((guest) => (
-        <div
-          key={guest.id}
-          className={cn(
-            "rounded-[1.5rem] border p-3.5",
-            guest.side === "JAMES"
-              ? "border-james/15 bg-james/5"
-              : "border-lisa/15 bg-lisa/5",
-          )}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
+        <li className="space-y-2.5 px-4 py-3.5" key={guest.id}>
+          <div className="flex items-start gap-3">
+            <div className="pt-0.5">
               <SelectGuestCheckbox
                 checked={selectedIds.has(guest.id)}
                 label={`Select ${guest.fullName}`}
                 onChange={() => onToggle(guest.id)}
               />
-              <div className="min-w-0 space-y-1">
-              <p className="text-base font-semibold text-primary">{guest.fullName}</p>
-              <p className="text-sm text-muted-foreground">{guest.relation}</p>
-              {guest.householdName ? (
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                  {guest.householdName}
-                </p>
-              ) : null}
-              </div>
             </div>
-            <SideBadge side={guest.side} />
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <GroupTypeBadge groupType={guest.groupType} />
-            <GuestTypeBadge guestType={guest.guestType} />
+            <div className="min-w-0 flex-1">
+              <GuestIdentity guest={guest} />
+            </div>
             {guest.invitation ? (
-              <>
-                <InviteStatusBadge status={guest.invitation.inviteStatus} />
-                <RsvpStatusBadge status={guest.invitation.rsvpStatus} />
-              </>
+              <RsvpStatusBadge status={guest.invitation.rsvpStatus} />
             ) : null}
           </div>
 
-          {guest.email || guest.phone ? (
-            <div className="mt-3">
-              <ContactDetails compact email={guest.email} phone={guest.phone} />
-            </div>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-7 text-xs text-muted-foreground">
+            <span>
+              {groupTypeLabels[guest.groupType]} · {guestTypeLabels[guest.guestType]}
+            </span>
+            {guest.invitation ? (
+              <span>Invite {inviteStatusLabels[guest.invitation.inviteStatus].toLowerCase()}</span>
+            ) : null}
+            {guest.invitation?.inviteKind === "HOUSEHOLD" ? (
+              <span>{`Household · ${guest.invitation.householdGuestCount}`}</span>
+            ) : null}
+            {guest.phone ? <span>{guest.phone}</span> : null}
+          </div>
 
-          {guest.invitation?.inviteKind === "HOUSEHOLD" ||
-          guest.invitation?.plusOneAllowed ? (
-            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-              {guest.invitation.inviteKind === "HOUSEHOLD" ? (
-                <p className="uppercase tracking-[0.2em]">
-                  {`Household invite · ${guest.invitation.householdGuestCount} guests`}
-                </p>
-              ) : null}
-              {guest.invitation.plusOneAllowed ? <p>Plus one enabled</p> : null}
-            </div>
-          ) : null}
-
-          <div className="mt-3">
+          <div className="-mr-2 flex justify-end">
             <GuestActions guest={guest} />
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
 function EmptyGuestTableState() {
   return (
-    <div className="flex min-h-[240px] items-center justify-center rounded-[1.5rem] border border-dashed border-border bg-muted/25 px-6 text-center">
+    <div className="flex min-h-[240px] items-center justify-center px-6 text-center">
       <div className="space-y-3">
         <p className="text-lg font-semibold text-primary">No guests match these filters.</p>
         <p className="max-w-md text-sm leading-6 text-muted-foreground">
-          Adjust the search, clear one or more filters, or reseed the database to
-          repopulate the guest list.
+          Try a different search, or remove a filter above.
         </p>
       </div>
     </div>
@@ -317,41 +314,15 @@ export function GuestTable({
     {
       accessorKey: "fullName",
       header: "Guest",
-      cell: ({ row }) => {
-        const guest = row.original;
-
-        return (
-          <div
-            className={cn(
-              "rounded-[1.25rem] border px-4 py-3",
-              guest.side === "JAMES"
-                ? "border-james/15 bg-james/5"
-                : "border-lisa/15 bg-lisa/5",
-            )}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <p className="font-semibold text-primary">{guest.fullName}</p>
-                <p className="text-sm text-muted-foreground">{guest.relation}</p>
-                {guest.householdName ? (
-                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                    {guest.householdName}
-                  </p>
-                ) : null}
-              </div>
-              <SideBadge side={guest.side} />
-            </div>
-          </div>
-        );
-      },
+      cell: ({ row }) => <GuestIdentity guest={row.original} />,
     },
     {
       accessorKey: "groupType",
       header: "Group",
       cell: ({ row }) => (
-        <div className="space-y-3">
-          <GroupTypeBadge groupType={row.original.groupType} />
-          <GuestTypeBadge guestType={row.original.guestType} />
+        <div className="text-sm">
+          <p className="text-primary">{groupTypeLabels[row.original.groupType]}</p>
+          <p className="text-muted-foreground">{guestTypeLabels[row.original.guestType]}</p>
         </div>
       ),
     },
@@ -379,12 +350,12 @@ export function GuestTable({
         row.original.invitation ? (
           <RsvpStatusBadge status={row.original.invitation.rsvpStatus} />
         ) : (
-          <div className="text-sm text-muted-foreground">No RSVP yet</div>
+          <span className="text-sm text-muted-foreground/70">—</span>
         ),
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <span className="sr-only">Actions</span>,
       cell: ({ row }) => <GuestActions guest={row.original} />,
     },
   ];
@@ -396,14 +367,8 @@ export function GuestTable({
   });
 
   return (
-    <Card className="border-white/80 bg-white/85">
-      <CardHeader>
-        <CardTitle>Guest directory</CardTitle>
-        <CardDescription>
-          Searchable and filterable guest records for the traditional wedding.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <>
+      <Card className="overflow-hidden">
         {guests.length === 0 ? (
           <EmptyGuestTableState />
         ) : (
@@ -413,15 +378,16 @@ export function GuestTable({
               onToggle={toggleGuest}
               selectedIds={selectedIds}
             />
-            <div className="hidden overflow-x-auto rounded-[1.5rem] border border-border/80 md:block">
-              <table className="min-w-full divide-y divide-border text-left">
-                <thead className="bg-muted/35">
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full text-left">
+                <thead className="border-b border-border/80 bg-muted/40">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map((header) => (
                         <th
                           key={header.id}
-                          className="px-5 py-4 text-sm font-semibold text-primary"
+                          className="whitespace-nowrap px-4 py-2.5 text-xs font-medium text-muted-foreground first:w-10 first:pr-0"
+                          scope="col"
                         >
                           {header.isPlaceholder
                             ? null
@@ -434,11 +400,17 @@ export function GuestTable({
                     </tr>
                   ))}
                 </thead>
-                <tbody className="divide-y divide-border/70 bg-white/75">
+                <tbody className="divide-y divide-border/60">
                   {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id} className="align-top">
+                    <tr
+                      className={cn(
+                        "align-top transition-colors hover:bg-muted/30",
+                        selectedIds.has(row.original.id) && "bg-primary/[0.04]",
+                      )}
+                      key={row.id}
+                    >
                       {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="px-5 py-4">
+                        <td key={cell.id} className="px-4 py-3 first:w-10 first:pr-0">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}
@@ -447,18 +419,17 @@ export function GuestTable({
                 </tbody>
               </table>
             </div>
-            {/* Direct child of the tall card body: a wrapper would collapse the
-                sticky scroll range and pin it to the end of the list instead. */}
-            {selectedGuests.length ? (
-              <HouseholdGroupingToolbar
-                householdOptions={householdOptions}
-                onClearSelection={() => setSelectedIds(new Set())}
-                selectedGuests={selectedGuests}
-              />
-            ) : null}
           </>
         )}
-      </CardContent>
-    </Card>
+      </Card>
+      {/* Outside the card so its sticky range spans the whole list. */}
+      {selectedGuests.length ? (
+        <HouseholdGroupingToolbar
+          householdOptions={householdOptions}
+          onClearSelection={() => setSelectedIds(new Set())}
+          selectedGuests={selectedGuests}
+        />
+      ) : null}
+    </>
   );
 }

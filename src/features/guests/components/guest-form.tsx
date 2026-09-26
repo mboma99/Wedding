@@ -6,10 +6,12 @@ import { startTransition, useEffect, useState, type ReactNode } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save, UserPlus } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DeleteGuestButton } from "@/features/guests/components/delete-guest-button";
 import {
@@ -269,6 +271,7 @@ export function GuestForm({
         return;
       }
 
+      toast.success(mode === "create" ? `Added ${values.fullName}` : "Changes saved");
       router.push("/admin/guests");
       router.refresh();
     });
@@ -277,12 +280,12 @@ export function GuestForm({
   return (
     <form className="space-y-5 sm:space-y-6" onSubmit={onSubmit}>
       {serverMessage ? (
-        <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
           {serverMessage}
         </div>
       ) : null}
 
-      <Card className="border-white/80 bg-white/85">
+      <Card>
         <CardHeader>
           <CardTitle>Guest profile</CardTitle>
         </CardHeader>
@@ -310,8 +313,7 @@ export function GuestForm({
           </FormField>
 
           <FormField label="Side" error={form.formState.errors.side?.message}>
-            <select
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <Select
               disabled={isPending}
               {...form.register("side")}
             >
@@ -320,15 +322,14 @@ export function GuestForm({
                   {sideLabels[side]}
                 </option>
               ))}
-            </select>
+            </Select>
           </FormField>
 
           <FormField
             label="Group type"
             error={form.formState.errors.groupType?.message}
           >
-            <select
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <Select
               disabled={isPending}
               {...form.register("groupType")}
             >
@@ -337,15 +338,14 @@ export function GuestForm({
                   {groupTypeLabels[groupType]}
                 </option>
               ))}
-            </select>
+            </Select>
           </FormField>
 
           <FormField
             label="Guest type"
             error={form.formState.errors.guestType?.message}
           >
-            <select
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <Select
               disabled={isPending}
               {...form.register("guestType")}
             >
@@ -354,16 +354,16 @@ export function GuestForm({
                   {guestTypeLabels[guestType]}
                 </option>
               ))}
-            </select>
+            </Select>
           </FormField>
 
           <FormField
             label="Household name"
             error={form.formState.errors.householdName?.message}
           >
-            <div className="space-y-4 rounded-[1.25rem] border border-border/80 bg-muted/20 p-4">
+            <div className="space-y-4 rounded-xl border border-border/80 bg-muted/20 p-4">
               <div className="grid gap-3">
-                <label className="rounded-[1rem] border border-border/80 bg-white/70 p-4">
+                <label className="rounded-lg border border-border/80 bg-white/70 p-4">
                   <div className="flex items-start gap-3">
                     <input
                       checked={householdMode === "INDIVIDUAL"}
@@ -384,7 +384,7 @@ export function GuestForm({
                   </div>
                 </label>
 
-                <label className="rounded-[1rem] border border-border/80 bg-white/70 p-4">
+                <label className="rounded-lg border border-border/80 bg-white/70 p-4">
                   <div className="flex items-start gap-3">
                     <input
                       checked={householdMode === "EXISTING"}
@@ -404,8 +404,7 @@ export function GuestForm({
                           {sideLabels[side]}.
                         </p>
                       </div>
-                      <select
-                        className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      <Select
                         disabled={
                           isPending ||
                           householdMode !== "EXISTING" ||
@@ -436,12 +435,12 @@ export function GuestForm({
                             </option>
                           ))
                         )}
-                      </select>
+                      </Select>
                     </div>
                   </div>
                 </label>
 
-                <label className="rounded-[1rem] border border-border/80 bg-white/70 p-4">
+                <label className="rounded-lg border border-border/80 bg-white/70 p-4">
                   <div className="flex items-start gap-3">
                     <input
                       checked={householdMode === "CUSTOM"}
@@ -471,7 +470,7 @@ export function GuestForm({
                 </label>
               </div>
 
-              <div className="rounded-[1rem] border border-border/70 bg-white/80 px-4 py-3 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-border/70 bg-white/80 px-4 py-3 text-sm text-muted-foreground">
                 {householdMode === "EXISTING" && selectedHousehold ? (
                   <span>
                     This guest will join the {selectedHousehold.householdName}{" "}
@@ -498,7 +497,7 @@ export function GuestForm({
         </CardContent>
       </Card>
 
-      <Card className="border-white/80 bg-white/85">
+      <Card>
         <CardHeader>
           <CardTitle>Contact channels</CardTitle>
         </CardHeader>
@@ -542,7 +541,7 @@ export function GuestForm({
         </CardContent>
       </Card>
 
-      <Card className="border-white/80 bg-white/85">
+      <Card>
         <CardHeader>
           <CardTitle>Invitation and RSVP</CardTitle>
         </CardHeader>
@@ -551,8 +550,7 @@ export function GuestForm({
             label="Invitation status"
             error={form.formState.errors.inviteStatus?.message}
           >
-            <select
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <Select
               disabled={isPending}
               {...form.register("inviteStatus")}
             >
@@ -561,15 +559,14 @@ export function GuestForm({
                   {inviteStatusLabels[status]}
                 </option>
               ))}
-            </select>
+            </Select>
           </FormField>
 
           <FormField
             label="RSVP status"
             error={form.formState.errors.rsvpStatus?.message}
           >
-            <select
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/80 px-4 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <Select
               disabled={isPending}
               {...form.register("rsvpStatus")}
             >
@@ -578,10 +575,10 @@ export function GuestForm({
                   {rsvpStatusLabels[status]}
                 </option>
               ))}
-            </select>
+            </Select>
           </FormField>
 
-          <div className="rounded-[1.25rem] border border-border/80 bg-muted/25 p-4 md:col-span-2">
+          <div className="rounded-xl border border-border/80 bg-muted/25 p-4 md:col-span-2">
             <label className="flex items-center gap-3">
               <input
                 className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
@@ -625,37 +622,31 @@ export function GuestForm({
       </Card>
 
       {mode === "edit" && guestId ? (
-        <Card className="border-rose-200 bg-rose-50/70">
-          <CardHeader>
-            <CardTitle>Danger zone</CardTitle>
-            <CardDescription>
-              Delete this guest from the directory. Their invitation and RSVP
-              record will be removed at the same time.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm leading-6 text-rose-800">
-              Use this only when the guest should no longer exist in the
-              traditional wedding list.
-            </p>
+        <Card className="border-rose-200">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="space-y-1">
+              <p className="font-medium text-primary">Delete this guest</p>
+              <p className="text-sm text-muted-foreground">
+                Removes them and their RSVP from the list. This can&apos;t be undone.
+              </p>
+            </div>
             <DeleteGuestButton
               className="w-full sm:w-auto"
               disabled={isPending}
               guestId={guestId}
               guestName={form.watch("fullName") || initialValues.fullName || "this guest"}
               label="Delete guest"
-              onDeleteError={setServerMessage}
               redirectHref="/admin/guests"
             />
           </CardContent>
         </Card>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <Button asChild className="w-full sm:w-auto" variant="outline">
+      <div className="sticky bottom-0 z-10 -mx-6 flex gap-3 border-t border-border/80 bg-background/95 px-6 py-3 backdrop-blur sm:static sm:mx-0 sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <Button asChild className="flex-1 sm:flex-none" variant="outline">
           <Link href="/admin/guests">Cancel</Link>
         </Button>
-        <Button className="w-full sm:w-auto" disabled={isPending} type="submit">
+        <Button className="flex-1 sm:flex-none" disabled={isPending} type="submit">
           {mode === "create" ? (
             <>
               <UserPlus className="mr-2 h-4 w-4" />

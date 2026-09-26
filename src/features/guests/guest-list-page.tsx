@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { GuestSide } from "@/domain/enums";
-import { UserPlus, Users } from "lucide-react";
+import { UserPlus } from "lucide-react";
 
-import { AppShellNav } from "@/components/shared/app-shell-nav";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GuestListFilters } from "@/features/guests/components/guest-list-filters";
 import { GuestListPagination } from "@/features/guests/components/guest-list-pagination";
 import { GuestTable } from "@/features/guests/components/guest-table";
@@ -15,44 +14,16 @@ import { getGuestList, getHouseholdOptions } from "@/server/queries/guests";
 function GuestListUnavailableState() {
   return (
     <main className="container py-8 sm:py-12">
-      <Card className="border-amber-200 bg-white/90">
+      <Card className="border-amber-200">
         <CardHeader>
-          <Badge variant="warning" className="w-fit">
-            Guest list unavailable
-          </Badge>
-          <CardTitle className="mt-4">The guest list could not be loaded.</CardTitle>
+          <CardTitle>The guest list couldn&apos;t load.</CardTitle>
           <CardDescription>
-            Check the database connection, then rerun Prisma sync and seed
-            commands before continuing with Phase 3 verification.
+            We couldn&apos;t reach the guest database. Check your connection and
+            refresh the page.
           </CardDescription>
         </CardHeader>
       </Card>
     </main>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent: "neutral" | "james" | "lisa";
-}) {
-  const tones = {
-    neutral: "border-border/80 bg-muted/30",
-    james: "border-james/15 bg-james/10",
-    lisa: "border-lisa/15 bg-lisa/10",
-  } as const;
-
-  return (
-    <div className={`rounded-[1.5rem] border p-4 sm:p-5 ${tones[accent]}`}>
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-primary sm:mt-3 sm:text-3xl">
-        {value}
-      </p>
-    </div>
   );
 }
 
@@ -68,58 +39,34 @@ export async function GuestListPage({
     ]);
 
     return (
-      <main className="container space-y-6 py-6 sm:space-y-8 sm:py-10">
-        <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card className="overflow-hidden border-white/80 bg-white/85">
-            <CardContent className="space-y-4 p-4 sm:space-y-8 sm:p-8">
-              <AppShellNav currentPath="/admin/guests" />
-              <div className="space-y-3">
-                <h1 className="font-serif text-2xl leading-tight text-primary sm:text-6xl sm:leading-none">
-                  Guest list
-                </h1>
-                </div>
-              <Button asChild className="w-full sm:w-fit">
-                <Link href="/admin/guests/new">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Add guest
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="overflow-hidden border-white/80 bg-white/85">
-            <CardContent className="space-y-4 p-4 sm:p-8">
-              <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/10 bg-primary/10 text-primary">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                    Directory summary
-                  </p>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    {guestList.totalGuests === 0
-                      ? "No matching guests for the current filters."
-                      : `Showing ${guestList.pageStart}-${guestList.pageEnd} of ${guestList.totalGuests} matching guests.`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <SummaryCard
-                  label="James side"
-                  value={guestList.sideTotals[GuestSide.JAMES]}
-                  accent="james"
-                />
-                <SummaryCard
-                  label="Lisa side"
-                  value={guestList.sideTotals[GuestSide.LISA]}
-                  accent="lisa"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+      <main className="container space-y-4 py-6 sm:space-y-5 sm:py-8">
+        <PageHeader
+          actions={
+            <Button asChild className="w-full sm:w-auto">
+              <Link href="/admin/guests/new">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add guest
+              </Link>
+            </Button>
+          }
+          meta={
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>
+                <span className="font-semibold text-primary">{guestList.totalGuests}</span>{" "}
+                {guestList.totalGuests === 1 ? "guest" : "guests"}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-2 w-2 rounded-sm bg-james" />
+                {guestList.sideTotals[GuestSide.JAMES]} James
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden className="h-2 w-2 rounded-sm bg-lisa" />
+                {guestList.sideTotals[GuestSide.LISA]} Lisa
+              </span>
+            </span>
+          }
+          title="Guests"
+        />
 
         <GuestListFilters filters={searchParams} />
 

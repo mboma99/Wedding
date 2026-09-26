@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Toaster } from "sonner";
 
 import "@/app/globals.css";
 
@@ -16,7 +17,18 @@ type RootLayoutProps = Readonly<{
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster
+          position="bottom-center"
+          toastOptions={{
+            style: {
+              fontFamily: "var(--font-sans)",
+              borderRadius: "0.75rem",
+            },
+          }}
+        />
+      </body>
     </html>
   );
 }

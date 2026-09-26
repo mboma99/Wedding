@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { AdminNav } from "@/components/shared/admin-nav";
 import { requireAdminSession } from "@/server/auth/admin";
 
 type ProtectedAdminLayoutProps = {
@@ -11,5 +12,10 @@ export default async function ProtectedAdminLayout({
 }: ProtectedAdminLayoutProps) {
   await requireAdminSession();
 
-  return children;
+  return (
+    <div className="admin-scope min-h-dvh">
+      <AdminNav />
+      {children}
+    </div>
+  );
 }

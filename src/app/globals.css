@@ -26,7 +26,13 @@
     --james-foreground: 210 40% 98%;
     --lisa: 338 83% 68%;
     --lisa-foreground: 355 100% 99%;
+    --destructive: 352 65% 42%;
     --radius: 1rem;
+    /* Card and control shapes are variables so the admin area can run
+       flatter and tighter without restyling the guest-facing pages. */
+    --card-radius: 1.75rem;
+    --card-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+    --control-radius: 1rem;
   }
 
   * {
@@ -38,6 +44,24 @@
     background-image: radial-gradient(circle at top left, rgba(68, 122, 255, 0.12), transparent 22%),
       radial-gradient(circle at top right, rgba(236, 72, 153, 0.12), transparent 24%),
       linear-gradient(180deg, #fffdf9 0%, #f8f4ee 100%);
+  }
+}
+
+@layer components {
+  /* Admin: a calm working surface. Solid warm canvas instead of the
+     landing-page glow, near-flat cards, tabular digits for every figure. */
+  .admin-scope {
+    --card-radius: 1rem;
+    --card-shadow: 0 1px 2px rgba(60, 45, 30, 0.04);
+    --control-radius: 0.625rem;
+    font-variant-numeric: tabular-nums;
+    background-color: hsl(var(--background));
+  }
+}
+
+@media (hover: none) {
+  html {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
