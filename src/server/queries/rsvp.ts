@@ -2,6 +2,7 @@ import type { PublicInvitationRecord } from "@/features/rsvp/types";
 import {
   buildInviteCodeFromToken,
   normalizeInviteCode,
+  normalizeEmailKey,
   normalizeInviteTokenCandidate,
   normalizePhoneKey,
   RSVP_CODE_LENGTH,
@@ -91,17 +92,19 @@ export async function getPublicInvitationByToken(
   };
 }
 
-async function resolveAccessTokenByPhone(
-  phoneKey: string,
+async function resolveAccessTokenByContact(
+  field: "phone" | "email",
+  matches: (guest: GuestRecord) => boolean,
 ): Promise<string | null> {
-  // Phones are stored free-form, so they are matched in memory rather than
-  // with an equality query. The guest list is small enough to scan.
+  // Phones and emails are stored free-form (spacing, capitals), so they are
+  // matched in memory rather than with an equality query. The guest list is
+  // small enough to scan.
   const snapshot = await guestsCollection()
-    .select("phone", "householdName", "side", "invitation")
+    .select(field, "householdName", "side", "invitation")
     .get();
 
   const matchingGuests = toGuestRecords(snapshot.docs).filter(
-    (guest) => guest.invitation && normalizePhoneKey(guest.phone) === phoneKey,
+    (guest) => guest.invitation && matches(guest),
   );
   const accessTokens = new Set<string>();
 
@@ -115,18 +118,30 @@ async function resolveAccessTokenByPhone(
     }
   }
 
-  // Guests in one household sharing a number collapse to one invitation; a
-  // number shared across separate invitations is ambiguous, so it fails.
+  // Guests in one household sharing a number or email collapse to one
+  // invitation; one shared across separate invitations is ambiguous, so it fails.
   return accessTokens.size === 1 ? [...accessTokens][0] : null;
 }
 
 export async function resolvePublicInvitationAccessToken(
   lookupValue: string,
 ): Promise<string | null> {
+  const emailKey = normalizeEmailKey(lookupValue);
+
+  if (emailKey) {
+    return resolveAccessTokenByContact(
+      "email",
+      (guest) => normalizeEmailKey(guest.email) === emailKey,
+    );
+  }
+
   const phoneKey = normalizePhoneKey(lookupValue);
 
   if (phoneKey) {
-    const accessToken = await resolveAccessTokenByPhone(phoneKey);
+    const accessToken = await resolveAccessTokenByContact(
+      "phone",
+      (guest) => normalizePhoneKey(guest.phone) === phoneKey,
+    );
 
     if (accessToken) {
       return accessToken;

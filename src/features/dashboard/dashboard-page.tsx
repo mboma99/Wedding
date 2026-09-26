@@ -272,7 +272,7 @@ export default async function DashboardPage({
                     className="pl-10"
                     id="dashboard-search"
                     name="q"
-                    placeholder="Find a guest by name, phone or email"
+                    placeholder="Name, phone or email"
                   />
                 </div>
               </form>

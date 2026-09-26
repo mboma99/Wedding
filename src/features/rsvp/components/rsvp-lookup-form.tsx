@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { KeyRound, Link2 } from "lucide-react";
+import { KeyRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
 const initialState: PublicRsvpLookupState = {};
 
 type RsvpLookupFormProps = {
+  /** "light" sits on the navy landing-page panel, with the button beside the box. */
   tone?: "default" | "light";
 };
 
@@ -25,23 +26,16 @@ export function RsvpLookupForm({ tone = "default" }: RsvpLookupFormProps) {
   const isLight = tone === "light";
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-3">
       {state.error ? (
         <div className="rounded-[1.25rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {state.error}
         </div>
       ) : null}
 
-      <label className="space-y-2">
-        <span
-          className={cn(
-            "text-sm font-medium",
-            isLight ? "text-white" : "text-muted-foreground",
-          )}
-        >
-          Phone number, RSVP code, or invitation link
-        </span>
-        <div className="relative">
+      <div className={cn("flex flex-col gap-3", isLight && "sm:flex-row")}>
+        <label className="relative block flex-1">
+          <span className="sr-only">Email, phone number or RSVP code</span>
           <KeyRound
             className={cn(
               "pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2",
@@ -49,51 +43,38 @@ export function RsvpLookupForm({ tone = "default" }: RsvpLookupFormProps) {
             )}
           />
           <Input
+            autoComplete="email"
             className={cn(
               "h-12 pl-10",
               isLight
-                ? "border-white/20 bg-white/10 text-white placeholder:text-white/55"
+                ? "border-white/20 bg-white/10 text-white placeholder:text-white/60"
                 : "bg-white/90",
             )}
             name="lookup"
-            placeholder="Enter your phone number or code like ABCD-1234"
+            placeholder="Email, phone or RSVP code"
           />
-        </div>
-      </label>
-
-      <div
-        className={cn(
-          "flex items-start gap-2 rounded-[1.25rem] border px-4 py-3 text-sm",
-          isLight
-            ? "border-white/15 bg-white/10 text-white"
-            : "border-border/80 bg-muted/20 text-muted-foreground",
-        )}
-      >
-        <Link2
-          className={cn(
-            "mt-0.5 h-4 w-4 shrink-0",
-            isLight ? "text-white" : "text-primary",
-          )}
-        />
-        <p>
-          Enter the phone number we have on file for you, or type the short RSVP
-          code from your invitation. You can also paste the full RSVP link.
-        </p>
-      </div>
-
-      <div className={cn("flex", isLight ? "justify-center" : "")}>
+        </label>
         <Button
           className={cn(
-            "w-full sm:w-auto",
+            "h-12 w-full sm:w-auto sm:px-8",
             isLight &&
-              "max-w-xs bg-[#f5ede3] text-primary shadow-lg shadow-black/15 hover:bg-[#efe2d1] sm:px-8",
+              "bg-[#f5ede3] text-primary shadow-lg shadow-black/15 hover:bg-[#efe2d1]",
           )}
           disabled={isPending}
           type="submit"
         >
-          {isPending ? "Finding RSVP..." : "Find my RSVP"}
+          {isPending ? "Finding…" : "Find my RSVP"}
         </Button>
       </div>
+
+      <p
+        className={cn(
+          "text-sm",
+          isLight ? "text-center text-white/70" : "text-muted-foreground",
+        )}
+      >
+        Got a link instead? Paste it here.
+      </p>
     </form>
   );
 }

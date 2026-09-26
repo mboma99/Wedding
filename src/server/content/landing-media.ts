@@ -3,6 +3,7 @@ import path from "node:path";
 
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".mov", ".m4v"]);
 const AUDIO_EXTENSIONS = new Set([".mp3", ".m4a", ".aac", ".wav", ".ogg"]);
+const POSTER_EXTENSIONS = new Set([".jpg", ".jpeg", ".webp", ".png"]);
 const VIDEO_EXTENSION_PRIORITY = [".mp4", ".webm", ".m4v", ".mov"];
 
 type LandingSong = {
@@ -12,6 +13,8 @@ type LandingSong = {
 
 export type LandingMedia = {
   videos: string[];
+  /** A still of the first clip, shown while it loads (public/media/landing/poster.jpg). */
+  poster: string | null;
   song: LandingSong | null;
 };
 
@@ -50,10 +53,12 @@ async function readMediaFiles(
 }
 
 export async function getLandingMedia(): Promise<LandingMedia> {
-  const [videoFiles, audioFiles] = await Promise.all([
+  const [videoFiles, audioFiles, landingFiles] = await Promise.all([
     readMediaFiles(["media", "landing", "videos"], VIDEO_EXTENSIONS),
     readMediaFiles(["media", "landing", "audio"], AUDIO_EXTENSIONS),
+    readMediaFiles(["media", "landing"], POSTER_EXTENSIONS),
   ]);
+  const posterFile = landingFiles.find((filename) => filename.startsWith("poster."));
 
   const preferredVideoFiles = Array.from(
     videoFiles.reduce((selected, filename) => {
@@ -87,6 +92,7 @@ export async function getLandingMedia(): Promise<LandingMedia> {
     videos: preferredVideoFiles.map((filename) =>
       toPublicUrl("media", "landing", "videos", filename),
     ),
+    poster: posterFile ? toPublicUrl("media", "landing", posterFile) : null,
     song: audioFiles[0]
       ? {
           src: toPublicUrl("media", "landing", "audio", audioFiles[0]),

@@ -111,7 +111,7 @@ export function GuestListFilters({ filters }: GuestListFiltersProps) {
             defaultValue={filters.q}
             id="guest-search"
             name="q"
-            placeholder="Search name, household, relation, phone or email"
+            placeholder="Name, household, phone"
           />
         </div>
         <Button

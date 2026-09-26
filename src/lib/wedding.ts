@@ -10,3 +10,6 @@ export const weddingDate: {
 
 /** Venue line for the invitation; null until it is confirmed. */
 export const weddingVenue: string | null = null;
+
+/** Gift registry link; the home page shows "Coming soon" in its Registry section until this is set. */
+export const registryUrl: string | null = null;

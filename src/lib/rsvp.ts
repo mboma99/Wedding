@@ -59,6 +59,13 @@ export function normalizeInviteCode(value: string) {
   return extractInviteLookupValue(value).replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 }
 
+/** An email typed into the RSVP lookup, compared case-insensitively. */
+export function normalizeEmailKey(value: string | null | undefined) {
+  const trimmed = value?.trim().toLowerCase() ?? "";
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
+}
+
 export function normalizePhoneKey(value: string | null | undefined) {
   if (!value || !/^[+0-9()\-\s.]+$/.test(value.trim())) {
     return null;

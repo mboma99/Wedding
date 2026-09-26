@@ -48,7 +48,7 @@ export async function resolvePublicRsvpLookupAction(
 
   if (!lookupValue) {
     return {
-      error: "Enter your phone number, RSVP code, or the RSVP link from your invitation.",
+      error: "Enter your email, phone number or RSVP code.",
     };
   }
 
@@ -57,7 +57,7 @@ export async function resolvePublicRsvpLookupAction(
   if (!accessToken) {
     return {
       error:
-        "We could not find an invitation with that phone number, code, or link. Check it and try again.",
+        "We couldn't find an invitation for that. Check it and try again.",
     };
   }
 

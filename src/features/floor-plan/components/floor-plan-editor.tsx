@@ -31,7 +31,7 @@ import {
   type PlanItem,
   type SeatingGuest,
 } from "@/domain/floor-plan";
-import { PlanCanvas } from "@/features/floor-plan/components/plan-canvas";
+import { PLAN_LEFT, PLAN_RIGHT, PlanCanvas } from "@/features/floor-plan/components/plan-canvas";
 import { cn } from "@/lib/utils";
 import { saveFloorPlanAction } from "@/server/actions/floor-plan";
 
@@ -51,6 +51,16 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [confirmReset, setConfirmReset] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // On a phone the plan is wider than the screen; start with the hall in view
+  // rather than the car park at the left edge.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    const hallCentre = (PLAN_LEFT + initialPlan.room.w / 2) / (PLAN_LEFT + initialPlan.room.w + PLAN_RIGHT);
+    scroller.scrollLeft = hallCentre * scroller.scrollWidth - scroller.clientWidth / 2;
+  }, [initialPlan.room.w]);
   const lastSaved = useRef(initialPlan);
 
   const { clashing, messages } = useMemo(() => findClashes(plan), [plan]);
@@ -300,7 +310,7 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overscroll-x-contain" ref={scrollerRef}>
             <PlanCanvas
               chairsUsed={chairsUsed}
               clashing={clashing}
@@ -321,7 +331,10 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
               ["Scale", "Grid = 1 m"],
               ["Status", "Estimate, not to scale"],
             ].map(([term, value]) => (
-              <div className="border-border/80 px-4 py-3 [&:not(:last-child)]:border-r" key={term}>
+              <div
+                className="border-border/80 px-4 py-3 odd:border-r [&:nth-child(-n+2)]:border-b sm:border-r sm:last:border-r-0 sm:[&:nth-child(-n+2)]:border-b-0"
+                key={term}
+              >
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{term}</dt>
                 <dd className="font-medium text-primary">{value}</dd>
               </div>

@@ -37,8 +37,10 @@ type PlanCanvasProps = {
   onKeyDown: (event: KeyboardEvent<SVGSVGElement>) => void;
 };
 
-const LEFT = 780;
-const RIGHT = 300;
+export const PLAN_LEFT = 780;
+export const PLAN_RIGHT = 300;
+const LEFT = PLAN_LEFT;
+const RIGHT = PLAN_RIGHT;
 const TOP = 130;
 
 // Tailwind classes per look; selection and clashes override the outline.
@@ -79,7 +81,7 @@ export function PlanCanvas({
   return (
     <svg
       aria-label="Floor plan of the main hall"
-      className="block h-auto w-full min-w-[560px] touch-none select-none font-sans"
+      className="block h-auto w-full min-w-[560px] touch-pan-x touch-pan-y select-none font-sans"
       onKeyDown={onKeyDown}
       onPointerCancel={onPointerUp}
       onPointerDown={onPointerDown}
@@ -215,7 +217,7 @@ function PlanShape({
   return (
     <g
       aria-label={nameOf(item)}
-      className={cn("cursor-grab outline-none active:cursor-grabbing focus-visible:[&>g>*]:stroke-ring", parked && "opacity-75")}
+      className={cn("cursor-grab touch-none outline-none active:cursor-grabbing focus-visible:[&>g>*]:stroke-ring", parked && "opacity-75")}
       data-item-id={item.id}
       role="button"
       tabIndex={0}
@@ -289,7 +291,7 @@ function ItemLabel({ item, chairsUsed }: { item: PlanItem; chairsUsed: number })
 
 function Handles({ item, resizing }: { item: PlanItem; resizing: boolean }) {
   const handle = (x: number, y: number, edge: string, cursor: string) => (
-    <g className={cursor} data-edge={edge} data-handle={item.id} key={edge}>
+    <g className={cn(cursor, "touch-none")} data-edge={edge} data-handle={item.id} key={edge}>
       <circle className="fill-transparent" cx={x} cy={y} r={34} />
       <rect className="fill-card stroke-lisa [stroke-width:5]" height={28} rx={5} width={28} x={x - 14} y={y - 14} />
     </g>

@@ -48,7 +48,7 @@ export function AdminNav() {
               <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-[calc(var(--segment-radius)_-_4px)] px-3 py-1.5 text-center text-sm font-medium transition-colors",
+                  "whitespace-nowrap rounded-[calc(var(--segment-radius)_-_4px)] px-1 py-1.5 text-center text-[0.8125rem] font-medium transition-colors sm:px-3 sm:text-sm",
                   active ? "text-primary" : "text-muted-foreground hover:text-primary",
                 )}
                 href={item.href}
