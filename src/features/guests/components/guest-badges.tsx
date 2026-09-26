@@ -1,4 +1,4 @@
-import { GroupType, GuestSide, GuestType, InviteStatus, RsvpStatus } from "@prisma/client";
+import { GroupType, GuestSide, GuestType, InviteStatus, RsvpStatus } from "@/domain/enums";
 
 import { Badge } from "@/components/ui/badge";
 import {

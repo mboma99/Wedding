@@ -7,9 +7,9 @@ This application models exactly one traditional wedding event. There is no `Wedd
 ## Technical shape
 
 - **Next.js App Router** for routing, layouts, and server-first pages.
-- **Prisma on Supabase Postgres** for the operational data model.
+- **Firestore via the Firebase Admin SDK** for the operational data model. See `docs/firestore-setup.md`.
 - **Feature folders** under `src/features/*` to keep dashboard, guest management, and RSVP flow isolated.
-- **Server utilities** under `src/server/*` for Prisma access, queries, and future server actions.
+- **Server utilities** under `src/server/*` for Firestore access, queries, and server actions. Only the server touches Firestore; `firestore.rules` denies all direct client access.
 - **Tailwind + shadcn/ui conventions** for reusable UI primitives and consistent theming.
 - **Zod + React Hook Form** reserved for the create/edit and public RSVP flows in later phases.
 - **TanStack Table + Recharts** reserved for the dashboard and guest directory in later phases.
@@ -17,10 +17,14 @@ This application models exactly one traditional wedding event. There is no `Wedd
 ## Data model decisions
 
 - `Guest` is the primary record for every invited person.
-- `Invitation` is a one-to-one extension of `Guest` for invitation and RSVP lifecycle fields.
+- `invitation` is a nested map on the guest document, holding invitation and RSVP lifecycle fields. It was a one-to-one `Invitation` table under Postgres; since every read joined the pair, Firestore keeps them in one document so reads need no join and a guest updates atomically.
 - `side` is intentionally limited to `JAMES` or `LISA` so the UI can apply clear visual ownership.
 - `inviteToken` lives on `Invitation` because public RSVP links are invitation-driven, not user-account-driven.
 - `dietaryRequirements` is stored as a string array because a guest can declare more than one requirement.
+- Enum values live in `src/domain/enums.ts` rather than being generated from a schema. The declaration-order arrays there exist because Postgres sorted enum columns by declaration order, and the in-memory sorts reproduce that ordering.
+- Guest list filtering, sorting and paging happen in memory (`src/server/queries/guests.ts`). Firestore cannot do case-insensitive substring search, cross-field OR, or offset paging, and a guest list is a few hundred documents at most.
+- Email uniqueness is enforced by a query inside the write transaction, standing in for the unique column Postgres provided.
+- A household is not a record: guests form one by sharing `side` and `householdName`, so a flat guest list can be collated into households later without a migration. `scripts/import-guests.ts` fills the name in on re-import and leaves invitation state alone.
 
 ## Folder structure
 
@@ -28,8 +32,10 @@ This application models exactly one traditional wedding event. There is no `Wedd
 .
 |-- docs/
 |   `-- architecture.md
-|-- prisma/
-|   |-- schema.prisma
+|-- data/
+|   `-- guest-list.csv
+|-- scripts/
+|   |-- import-guests.ts
 |   `-- seed.ts
 |-- src/
 |   |-- app/
@@ -43,15 +49,21 @@ This application models exactly one traditional wedding event. There is no `Wedd
 |   |   |-- dashboard/
 |   |   |-- guests/
 |   |   `-- rsvp/
+|   |-- domain/
+|   |   `-- enums.ts
 |   |-- lib/
 |   |   `-- utils.ts
 |   `-- server/
 |       |-- actions/
 |       |-- db/
-|       |   `-- prisma.ts
+|       |   |-- firestore.ts
+|       |   `-- guest-doc.ts
 |       `-- queries/
 |-- .env.example
 |-- components.json
+|-- firebase.json
+|-- firestore.indexes.json
+|-- firestore.rules
 |-- eslint.config.mjs
 |-- next.config.ts
 |-- package.json

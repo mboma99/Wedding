@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GuestSide } from "@prisma/client";
+import { GuestSide } from "@/domain/enums";
 import { UserPlus, Users } from "lucide-react";
 
 import { AppShellNav } from "@/components/shared/app-shell-nav";
@@ -10,7 +10,7 @@ import { GuestListFilters } from "@/features/guests/components/guest-list-filter
 import { GuestListPagination } from "@/features/guests/components/guest-list-pagination";
 import { GuestTable } from "@/features/guests/components/guest-table";
 import { type GuestListSearchParams } from "@/features/guests/types";
-import { getGuestList } from "@/server/queries/guests";
+import { getGuestList, getHouseholdOptions } from "@/server/queries/guests";
 
 function GuestListUnavailableState() {
   return (
@@ -60,7 +60,10 @@ export async function GuestListPage({
   searchParams: GuestListSearchParams;
 }) {
   try {
-    const guestList = await getGuestList(searchParams);
+    const [guestList, householdOptions] = await Promise.all([
+      getGuestList(searchParams),
+      getHouseholdOptions(),
+    ]);
 
     return (
       <main className="container space-y-6 py-6 sm:space-y-8 sm:py-10">
@@ -118,7 +121,7 @@ export async function GuestListPage({
 
         <GuestListFilters filters={searchParams} />
 
-        <GuestTable guests={guestList.guests} />
+        <GuestTable guests={guestList.guests} householdOptions={householdOptions} />
 
         <GuestListPagination
           filters={searchParams}

@@ -35,6 +35,18 @@ export function LandingHeroMedia({
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pauseTimeoutRef = useRef<number | null>(null);
+  const shouldResumeAudioRef = useRef(false);
+
+  function pauseAllMedia() {
+    const audio = audioRef.current;
+
+    shouldResumeAudioRef.current = Boolean(audio && !audio.paused);
+    audio?.pause();
+
+    for (const video of videoRefs.current) {
+      video?.pause();
+    }
+  }
 
   useEffect(() => {
     const activeVideo = videoRefs.current[activeVideoIndex];
@@ -51,6 +63,8 @@ export function LandingHeroMedia({
       if (pauseTimeoutRef.current) {
         window.clearTimeout(pauseTimeoutRef.current);
       }
+
+      pauseAllMedia();
     };
   }, []);
 
@@ -100,6 +114,46 @@ export function LandingHeroMedia({
       window.removeEventListener("keydown", resumePlayback);
     };
   }, [isMuted, needsPlaybackResume]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        pauseAllMedia();
+        return;
+      }
+
+      const activeVideo = videoRefs.current[activeVideoIndex];
+
+      if (activeVideo) {
+        void startVideoPlayback(activeVideo, false);
+      }
+
+      const audio = audioRef.current;
+
+      if (!audio || !song || !shouldResumeAudioRef.current) {
+        return;
+      }
+
+      audio.muted = isMuted;
+      void audio.play().then(() => {
+        shouldResumeAudioRef.current = false;
+      }).catch(() => {
+        setNeedsPlaybackResume(true);
+      });
+    };
+
+    const handlePageHide = () => {
+      pauseAllMedia();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [activeVideoIndex, isMuted, song]);
 
   async function startVideoPlayback(
     video: HTMLVideoElement,

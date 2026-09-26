@@ -1,15 +1,15 @@
 import { createHash } from "node:crypto";
 
+import { FieldValue } from "firebase-admin/firestore";
+
 import {
   GroupType,
   GuestSide,
   GuestType,
   InviteStatus,
-  PrismaClient,
   RsvpStatus,
-} from "@prisma/client";
-
-const prisma = new PrismaClient();
+} from "@/domain/enums";
+import { guestsCollection } from "@/server/db/firestore";
 
 type SeedGuest = {
   fullName: string;
@@ -252,76 +252,55 @@ function createInviteToken(email: string) {
   return createHash("sha256").update(email.toLowerCase()).digest("hex").slice(0, 36);
 }
 
-async function main() {
-  for (const guest of guests) {
-    const inviteToken = createInviteToken(guest.email);
+/** Email is the seed's identity, matching the unique column it replaced. */
+async function findGuestIdByEmail(email: string) {
+  const existing = await guestsCollection()
+    .where("email", "==", email)
+    .limit(1)
+    .get();
 
-    await prisma.guest.upsert({
-      where: {
-        email: guest.email,
-      },
-      update: {
+  return existing.docs[0]?.id ?? null;
+}
+
+async function main() {
+  const collection = guestsCollection();
+
+  for (const guest of guests) {
+    const email = guest.email.trim().toLowerCase();
+    const inviteToken = createInviteToken(email);
+    const existingId = await findGuestIdByEmail(email);
+    const guestRef = existingId ? collection.doc(existingId) : collection.doc();
+
+    await guestRef.set(
+      {
         fullName: guest.fullName,
         side: guest.side,
         groupType: guest.groupType,
         relation: guest.relation,
         guestType: guest.guestType,
-        householdName: guest.householdName,
-        notes: guest.notes,
-        phone: guest.phone,
+        householdName: guest.householdName ?? null,
+        notes: guest.notes ?? null,
+        phone: guest.phone ?? null,
+        email,
         invitation: {
-          upsert: {
-            update: {
-              inviteStatus: guest.invitation.inviteStatus,
-              rsvpStatus: guest.invitation.rsvpStatus,
-              plusOneAllowed: guest.invitation.plusOneAllowed,
-              plusOneName: guest.invitation.plusOneName,
-              dietaryRequirements: guest.invitation.dietaryRequirements,
-              inviteToken,
-            },
-            create: {
-              inviteStatus: guest.invitation.inviteStatus,
-              rsvpStatus: guest.invitation.rsvpStatus,
-              plusOneAllowed: guest.invitation.plusOneAllowed,
-              plusOneName: guest.invitation.plusOneName,
-              dietaryRequirements: guest.invitation.dietaryRequirements,
-              inviteToken,
-            },
-          },
+          inviteStatus: guest.invitation.inviteStatus,
+          rsvpStatus: guest.invitation.rsvpStatus,
+          plusOneAllowed: guest.invitation.plusOneAllowed,
+          plusOneName: guest.invitation.plusOneName ?? null,
+          dietaryRequirements: guest.invitation.dietaryRequirements,
+          inviteToken,
         },
+        ...(existingId ? {} : { createdAt: FieldValue.serverTimestamp() }),
+        updatedAt: FieldValue.serverTimestamp(),
       },
-      create: {
-        fullName: guest.fullName,
-        side: guest.side,
-        groupType: guest.groupType,
-        relation: guest.relation,
-        guestType: guest.guestType,
-        householdName: guest.householdName,
-        notes: guest.notes,
-        phone: guest.phone,
-        email: guest.email,
-        invitation: {
-          create: {
-            inviteStatus: guest.invitation.inviteStatus,
-            rsvpStatus: guest.invitation.rsvpStatus,
-            plusOneAllowed: guest.invitation.plusOneAllowed,
-            plusOneName: guest.invitation.plusOneName,
-            dietaryRequirements: guest.invitation.dietaryRequirements,
-            inviteToken,
-          },
-        },
-      },
-    });
+      { merge: true },
+    );
   }
 
   console.log(`Seeded ${guests.length} wedding guests.`);
 }
 
-main()
-  .catch((error) => {
-    console.error("Seed failed", error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((error) => {
+  console.error("Seed failed", error);
+  process.exitCode = 1;
+});

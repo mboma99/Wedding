@@ -23,6 +23,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { DashboardCharts } from "@/features/dashboard/components/dashboard-charts";
 import { KpiCard } from "@/features/dashboard/components/kpi-card";
+import {
+  buildDashboardHouseholdKey,
+  parseDashboardHouseholdFilter,
+  type DashboardSearchParams,
+} from "@/features/dashboard/types";
+import { sideLabels, type HouseholdOption } from "@/features/guests/types";
 import { cn } from "@/lib/utils";
 import { getDashboardSummary } from "@/server/queries/dashboard";
 
@@ -76,13 +82,23 @@ function DashboardUnavailableState() {
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+  householdOptions,
+}: {
+  searchParams: DashboardSearchParams;
+  householdOptions: HouseholdOption[];
+}) {
   try {
-    const summary = await getDashboardSummary();
+    const householdFilter = parseDashboardHouseholdFilter(searchParams.household);
+    const summary = await getDashboardSummary(householdFilter);
     const jamesGuests =
       summary.sideBreakdown.find((item) => item.key === "JAMES")?.count ?? 0;
     const lisaGuests =
       summary.sideBreakdown.find((item) => item.key === "LISA")?.count ?? 0;
+    const activeHouseholdLabel = householdFilter
+      ? `${householdFilter.householdName} • ${sideLabels[householdFilter.side]}`
+      : null;
 
     return (
       <main className="container space-y-6 py-6 sm:space-y-8 sm:py-10">
@@ -96,6 +112,41 @@ export default async function DashboardPage() {
                     Guest overview
                   </h1>
                 </div>
+                <form action="/admin" method="get" className="space-y-3">
+                  <label className="block space-y-2">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Household filter
+                    </span>
+                    <select
+                      className="flex h-12 w-full rounded-2xl border border-border bg-white/80 px-4 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+                      defaultValue={searchParams.household}
+                      name="household"
+                    >
+                      <option value="">All households</option>
+                      {householdOptions.map((household) => (
+                        <option
+                          key={buildDashboardHouseholdKey(household)}
+                          value={buildDashboardHouseholdKey(household)}
+                        >
+                          {household.householdName} • {sideLabels[household.side]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <Button className="w-full sm:w-fit" type="submit" variant="outline">
+                      Apply household filter
+                    </Button>
+                    <Button asChild className="w-full sm:w-fit" variant="ghost">
+                      <Link href="/admin">Clear</Link>
+                    </Button>
+                  </div>
+                </form>
+                {activeHouseholdLabel ? (
+                  <Badge variant="outline" className="w-fit bg-white/80">
+                    Household: {activeHouseholdLabel}
+                  </Badge>
+                ) : null}
                 <form action="/admin/guests" method="get" className="space-y-3">
                   <label className="block space-y-2">
                     <span className="text-sm font-medium text-muted-foreground">

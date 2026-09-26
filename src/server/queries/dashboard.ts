@@ -1,10 +1,17 @@
-import { GroupType, GuestSide, InviteStatus, RsvpStatus } from "@prisma/client";
+import {
+  GroupType,
+  GuestSide,
+  InviteStatus,
+  RsvpStatus,
+} from "@/domain/enums";
 
 import type {
   DashboardBreakdownItem,
+  DashboardHouseholdFilter,
   DashboardSummary,
 } from "@/features/dashboard/types";
-import { prisma } from "@/server/db/prisma";
+import { guestsCollection } from "@/server/db/firestore";
+import { toGuestRecords, type GuestRecord } from "@/server/db/guest-doc";
 
 const sideOrder = [GuestSide.JAMES, GuestSide.LISA] as const;
 const groupOrder = [
@@ -48,10 +55,23 @@ const inviteMeta = {
   [InviteStatus.DELIVERED]: { label: "Delivered", color: "#10b981" },
 } satisfies Record<InviteStatus, { label: string; color: string }>;
 
-function toCountMap<T extends string>(
-  entries: ReadonlyArray<{ key: T; count: number }>,
+function countBy<T extends string>(
+  guests: readonly GuestRecord[],
+  getKey: (guest: GuestRecord) => T | null,
 ) {
-  return new Map<T, number>(entries.map((entry) => [entry.key, entry.count]));
+  const counts = new Map<T, number>();
+
+  for (const guest of guests) {
+    const key = getKey(guest);
+
+    if (key === null) {
+      continue;
+    }
+
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return counts;
 }
 
 function buildBreakdown<T extends string>(
@@ -71,82 +91,51 @@ function getCount(items: DashboardBreakdownItem[], key: string) {
   return items.find((item) => item.key === key)?.count ?? 0;
 }
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
-  const [
-    totalGuests,
-    householdGuests,
-    sideCounts,
-    groupCounts,
-    rsvpCounts,
-    inviteCounts,
-  ] = await Promise.all([
-    prisma.guest.count(),
-    prisma.guest.findMany({
-      select: {
-        id: true,
-        householdName: true,
-      },
-    }),
-    prisma.guest.groupBy({
-      by: ["side"],
-      _count: {
-        _all: true,
-      },
-    }),
-    prisma.guest.groupBy({
-      by: ["groupType"],
-      _count: {
-        _all: true,
-      },
-    }),
-    prisma.invitation.groupBy({
-      by: ["rsvpStatus"],
-      _count: {
-        _all: true,
-      },
-    }),
-    prisma.invitation.groupBy({
-      by: ["inviteStatus"],
-      _count: {
-        _all: true,
-      },
-    }),
-  ]);
+function matchesHouseholdFilter(
+  guest: GuestRecord,
+  householdFilter: DashboardHouseholdFilter | null,
+) {
+  if (!householdFilter) {
+    return true;
+  }
 
+  return (
+    guest.side === householdFilter.side &&
+    guest.householdName === householdFilter.householdName
+  );
+}
+
+export async function getDashboardSummary(
+  householdFilter: DashboardHouseholdFilter | null = null,
+): Promise<DashboardSummary> {
+  const snapshot = await guestsCollection().get();
+  const guests = toGuestRecords(snapshot.docs).filter((guest) =>
+    matchesHouseholdFilter(guest, householdFilter),
+  );
+
+  // The invitation counts only ever covered guests that have an invitation.
+  const invitedGuests = guests.filter((guest) => guest.invitation);
+
+  const totalGuests = guests.length;
   const sideBreakdown = buildBreakdown(
     sideOrder,
     sideMeta,
-    toCountMap(sideCounts.map((item) => ({ key: item.side, count: item._count._all }))),
+    countBy(guests, (guest) => guest.side),
   );
   const groupBreakdown = buildBreakdown(
     groupOrder,
     groupMeta,
-    toCountMap(
-      groupCounts.map((item) => ({
-        key: item.groupType,
-        count: item._count._all,
-      })),
-    ),
+    countBy(guests, (guest) => guest.groupType),
   );
   const rsvpBreakdown = buildBreakdown(
     rsvpOrder,
     rsvpMeta,
-    toCountMap(
-      rsvpCounts.map((item) => ({
-        key: item.rsvpStatus,
-        count: item._count._all,
-      })),
-    ),
+    countBy(invitedGuests, (guest) => guest.invitation?.rsvpStatus ?? null),
   );
   const inviteBreakdown = buildBreakdown(
     inviteOrder,
     inviteMeta,
-    toCountMap(
-      inviteCounts.map((item) => ({
-        key: item.inviteStatus,
-        count: item._count._all,
-      })),
-    ),
+    countBy(invitedGuests, (guest) => guest.invitation?.inviteStatus ?? null),
   );
 
   const attending = getCount(rsvpBreakdown, RsvpStatus.ATTENDING);
@@ -154,7 +143,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const declined = getCount(rsvpBreakdown, RsvpStatus.DECLINED);
   const responsesReceived = attending + declined;
   const households = new Set(
-    householdGuests.map((guest) => guest.householdName?.trim() || guest.id),
+    guests.map((guest) => guest.householdName?.trim() || guest.id),
   ).size;
   const invitationsOut =
     getCount(inviteBreakdown, InviteStatus.SENT) +

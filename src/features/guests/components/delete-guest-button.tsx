@@ -13,6 +13,7 @@ type DeleteGuestButtonProps = {
   label?: string;
   redirectHref?: string;
   disabled?: boolean;
+  iconOnly?: boolean;
   onDeleteError?: (message: string) => void;
 } & Pick<ButtonProps, "className" | "size" | "variant">;
 
@@ -22,6 +23,7 @@ export function DeleteGuestButton({
   label = "Delete",
   redirectHref,
   disabled = false,
+  iconOnly = false,
   onDeleteError,
   className,
   size = "default",
@@ -63,15 +65,17 @@ export function DeleteGuestButton({
 
   return (
     <Button
+      aria-label={iconOnly ? `${label} ${guestName}` : undefined}
       className={className}
       disabled={disabled || isPending}
       onClick={handleDelete}
-      size={size}
+      size={iconOnly ? "icon" : size}
+      title={iconOnly ? `${label} ${guestName}` : undefined}
       type="button"
       variant={variant}
     >
-      <Trash2 className="mr-2 h-4 w-4" />
-      {isPending ? "Deleting..." : label}
+      <Trash2 className={iconOnly ? "h-4 w-4" : "mr-2 h-4 w-4"} />
+      {iconOnly ? null : isPending ? "Deleting..." : label}
     </Button>
   );
 }
