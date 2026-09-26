@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const navigationItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/guests", label: "Guests" },
+  { href: "/admin/vendors", label: "Vendors" },
 ] as const;
 
 type AppShellNavProps = {

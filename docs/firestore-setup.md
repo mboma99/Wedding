@@ -86,6 +86,79 @@ genuinely different guests with the same name stay separate. Renaming a guest in
 the file makes the importer treat it as a new guest, so rename in the admin UI
 instead.
 
+## Importing vendors, costs and payments
+
+`data/vendors.json` holds the vendor data, generated from the wedding workbook's
+**Final Proposal** and **Payment Plan** sheets:
+
+```bash
+python3 scripts/extract-vendors.py "/path/to/Traditional_Wedding_Dashboard.xlsx"
+npm run import:vendors
+```
+
+The extractor needs no third-party packages — it reads the .xlsx directly. It
+maps each Payment Plan row to a vendor, attaches the Final Proposal line items,
+bank details and final payment deadlines, and reconciles against the workbook's
+own totals (£9,127.50 cost, £3,726.40 still to find).
+
+It also reads the **cell colours**, which is where the funding split lives:
+
+| Sheet colour | Meaning |
+|---|---|
+| pink `#F4C2D7` | Lisa's money |
+| blue `#8DB3E2` | James' money |
+| purple `#8E7CC3` | joint money |
+| green `#93C47D` | already paid to the vendor |
+| no colour | planned, owner not decided |
+
+Green and the owner colours are separate facts, so an entry stores both: a
+`source` naming whose money it is, and a `paid` flag. The sheet loses the owner
+when a cell turns green, but the bank-row formulas often still name the payer —
+the £50 Ari payment appears as `- H7` in Lisa's row, so it imports as Lisa, paid.
+Seven older payments are named in neither formula and import as unassigned; set
+their owner in the app.
+
+The `Lisas' Bank` and `James' Bank` rows below the Total become the savings
+balances, seeded into `meta/savings` on first import only.
+
+### Where joint splits come from
+
+Joint cells are one figure in the sheet, but the bank-row formulas attribute
+them per person as explicit fractions:
+
+```
+Lisa's Bank  = ... + (F6*0.30347566) + (G6*0.30347566) + (H6*0.35117273) + (0.64038728*I7)
+James' Bank  = E9  + (F6*0.69652434) + (G6*0.69652434) + (H6*0.64882727) + (I7*0.35961272)
+```
+
+The extractor parses those coefficients, so each joint entry carries the real
+split rather than an even one. An even split is only used when a joint cell has
+no coefficient in either formula.
+
+Those formulas also show that the bank rows are not separate savings pots: they
+are the sum of everything each person has put in, joint shares included, less
+money already paid out. James' £1,100 is exactly his £500 plus his £600 of joint
+shares; Lisa's £2,305.42 is her £2,024.55 plus £330.87 of joint shares, less the
+£50 Ari payment her formula subtracts.
+
+Seven Food line items are not split between the three caterers in the workbook,
+so they are stored separately and shown under the Food heading rather than
+guessed at.
+
+### Re-importing is safe
+
+Costs, bank details and deadlines are refreshed from the workbook on every
+import. Entries, line items, notes and savings balances are editable in the app,
+so they are written once when a vendor is first created and **never**
+overwritten, and updating the spreadsheet will not wipe them.
+
+### A note on bank details
+
+Vendor bank details are stored in Firestore and displayed on `/admin/vendors`.
+The admin password is the only thing protecting that page, so treat it
+accordingly. `scripts/extract-vendors.py` deliberately keeps them out of its
+console output.
+
 ## Local development without touching the real project
 
 ```bash

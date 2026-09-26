@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "db:seed": "tsx --env-file=.env scripts/seed.ts",
     "db:emulator": "firebase emulators:start --only firestore",
-    "import:guests": "tsx --env-file=.env scripts/import-guests.ts"
+    "import:guests": "tsx --env-file=.env scripts/import-guests.ts",
+    "import:vendors": "tsx --env-file=.env scripts/import-vendors.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

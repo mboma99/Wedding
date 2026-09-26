@@ -24,6 +24,10 @@ This application models exactly one traditional wedding event. There is no `Wedd
 - Enum values live in `src/domain/enums.ts` rather than being generated from a schema. The declaration-order arrays there exist because Postgres sorted enum columns by declaration order, and the in-memory sorts reproduce that ordering.
 - Guest list filtering, sorting and paging happen in memory (`src/server/queries/guests.ts`). Firestore cannot do case-insensitive substring search, cross-field OR, or offset paging, and a guest list is a few hundred documents at most.
 - Email uniqueness is enforced by a query inside the write transaction, standing in for the unique column Postgres provided.
+- `vendors` is a second collection holding the booked suppliers, their proposal line items, bank details, deadlines and money entries.
+- Each entry carries a `source` naming whose money it is (`LISA`, `JAMES`, `JOINT`, `UNASSIGNED`) and a separate `paid` flag. Keeping them apart is deliberate: the workbook colours a cell green when it is paid, which erases who funded it, so paying a vendor used to lose the attribution. A vendor therefore has three figures — paid, set aside, still to find — while each person keeps credit for money they have already handed over.
+- Joint entries carry a `split`. The workbook records joint money as one figure, but its bank-row formulas attribute each joint cell by an explicit fraction, and those fractions are the real splits.
+- Savings balances live in `meta/savings` so the app can show what each person has saved against what they have allocated.
 - A household is not a record: guests form one by sharing `side` and `householdName`, so a flat guest list can be collated into households later without a migration. `scripts/import-guests.ts` fills the name in on re-import and leaves invitation state alone.
 
 ## Folder structure
@@ -33,9 +37,12 @@ This application models exactly one traditional wedding event. There is no `Wedd
 |-- docs/
 |   `-- architecture.md
 |-- data/
-|   `-- guest-list.csv
+|   |-- guest-list.csv
+|   `-- vendors.json
 |-- scripts/
+|   |-- extract-vendors.py
 |   |-- import-guests.ts
+|   |-- import-vendors.ts
 |   `-- seed.ts
 |-- src/
 |   |-- app/
