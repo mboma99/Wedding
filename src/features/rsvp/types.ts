@@ -10,6 +10,7 @@ export type PublicInvitationGuest = {
   side: GuestSide;
   guestType: GuestType;
   householdName: string | null;
+  lobolaInvited: boolean;
   invitation: {
     inviteToken: string;
     rsvpStatus: RsvpStatus;
@@ -31,7 +32,10 @@ export type PublicInvitationRecord = {
 
 export const publicRsvpGuestSchema = z.object({
   guestId: z.string().min(1),
-  rsvpStatus: z.union([z.literal(RsvpStatus.ATTENDING), z.literal(RsvpStatus.DECLINED)]),
+  // An unanswered radio group reads as null, so every failure gets the same plain message.
+  rsvpStatus: z.enum([RsvpStatus.ATTENDING, RsvpStatus.DECLINED], {
+    errorMap: () => ({ message: "Choose whether they're coming." }),
+  }),
   plusOneAllowed: z.boolean().default(false),
   plusOneName: z.string().trim().max(160).optional().default(""),
   dietaryRequirements: z.string().trim().max(500).optional().default(""),
@@ -43,16 +47,29 @@ export const publicRsvpFormSchema = z.object({
 
 export type PublicRsvpFormValues = z.infer<typeof publicRsvpFormSchema>;
 
+/** The form before anyone has chosen: a guest who hasn't replied has no answer selected. */
+export type PublicRsvpDraftValues = {
+  guests: Array<
+    Omit<PublicRsvpFormValues["guests"][number], "rsvpStatus"> & {
+      rsvpStatus?: PublicRsvpFormValues["guests"][number]["rsvpStatus"];
+    }
+  >;
+};
+
+export function hasReplied(guest: PublicInvitationGuest) {
+  return guest.invitation.rsvpStatus !== RsvpStatus.PENDING;
+}
+
 export function getPublicRsvpInitialValues(
   invitation: PublicInvitationRecord,
-): PublicRsvpFormValues {
+): PublicRsvpDraftValues {
   return {
     guests: invitation.guests.map((guest) => ({
       guestId: guest.id,
-      rsvpStatus:
-        guest.invitation.rsvpStatus === RsvpStatus.DECLINED
-          ? RsvpStatus.DECLINED
-          : RsvpStatus.ATTENDING,
+      // Only a reply the guest actually gave is shown as selected.
+      rsvpStatus: hasReplied(guest)
+        ? (guest.invitation.rsvpStatus as PublicRsvpFormValues["guests"][number]["rsvpStatus"])
+        : undefined,
       plusOneAllowed: guest.invitation.plusOneAllowed,
       plusOneName: guest.invitation.plusOneName ?? "",
       dietaryRequirements: guest.invitation.dietaryRequirements.join(", "),

@@ -9,6 +9,13 @@ import {
   setAdminSession,
   verifyAdminPassword,
 } from "@/server/auth/admin";
+import {
+  ADMIN_LOGIN_LIMIT,
+  blockedFor,
+  clearAttempts,
+  recordAttempt,
+  visitorKey,
+} from "@/server/rate-limit";
 
 const adminLoginSchema = z.object({
   password: z.string().min(1),
@@ -39,12 +46,25 @@ export async function loginAdminAction(
     };
   }
 
+  const visitor = await visitorKey();
+  const waitMinutes = blockedFor(ADMIN_LOGIN_LIMIT, visitor);
+
+  if (waitMinutes) {
+    return {
+      error: `Too many wrong passwords. Try again in ${waitMinutes} minute${waitMinutes === 1 ? "" : "s"}.`,
+    };
+  }
+
   if (!verifyAdminPassword(parsed.data.password)) {
+    recordAttempt(ADMIN_LOGIN_LIMIT, visitor);
+    // A short pause on every wrong guess slows down anyone trying many.
+    await new Promise((resolve) => setTimeout(resolve, 600));
     return {
       error: "That password is incorrect.",
     };
   }
 
+  clearAttempts(ADMIN_LOGIN_LIMIT, visitor);
   await setAdminSession();
   redirect("/admin");
 }

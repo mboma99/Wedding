@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import type { GuestDayView } from "@/domain/days";
 import { PublicRsvpForm } from "@/features/rsvp/components/public-rsvp-form";
+import { YourDays } from "@/features/rsvp/components/your-days";
 import { WaxSeal } from "@/features/rsvp/components/wax-seal";
 import {
   getInvitationHeading,
+  hasReplied,
   type PublicInvitationRecord,
 } from "@/features/rsvp/types";
 import { displayFont } from "@/lib/fonts";
@@ -112,10 +115,16 @@ function Envelope({
 
 export function InvitationExperience({
   invitation,
+  days,
 }: {
   invitation: PublicInvitationRecord;
+  days: GuestDayView[];
 }) {
-  const [stage, setStage] = useState<Stage>("sealed");
+  // The envelope is a first-time moment. Someone coming back to their reply
+  // has already opened it, so they go straight to the letter.
+  const everyoneReplied = invitation.guests.every(hasReplied);
+  const [stage, setStage] = useState<Stage>(everyoneReplied ? "revealed" : "sealed");
+  const daysFirst = everyoneReplied && days.some((day) => day.attending);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const heading = getInvitationHeading(invitation);
   const names = invitation.guests.map((guest) => guest.fullName);
@@ -174,28 +183,34 @@ export function InvitationExperience({
             invite you to celebrate their traditional wedding
           </p>
 
-          <div className="space-y-1">
-            <div aria-hidden className="mx-auto mb-5 flex items-center justify-center gap-3 text-primary/40">
-              <span className="h-px w-12 bg-current" />
-              <span className="h-1.5 w-1.5 rotate-45 bg-current" />
-              <span className="h-px w-12 bg-current" />
+          {weddingDate || weddingVenue ? (
+            <div className="space-y-1">
+              <div aria-hidden className="mx-auto mb-5 flex items-center justify-center gap-3 text-primary/40">
+                <span className="h-px w-12 bg-current" />
+                <span className="h-1.5 w-1.5 rotate-45 bg-current" />
+                <span className="h-px w-12 bg-current" />
+              </div>
+              {weddingDate ? (
+                <p className={cn(displayFont.className, "text-xl text-primary sm:text-2xl")}>
+                  {weddingDate.dateLabel}
+                </p>
+              ) : null}
+              {weddingVenue ? <p className="text-sm text-muted-foreground">{weddingVenue}</p> : null}
             </div>
-            <p className={cn(displayFont.className, "text-xl text-primary sm:text-2xl")}>
-              {weddingDate ? weddingDate.dateLabel : "Date to be announced"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {weddingVenue ?? "Venue details to follow"}
-            </p>
-          </div>
+          ) : null}
         </header>
 
+        {/* Once everyone has replied and someone is coming, the days come first.
+            The reply stays in the same place in the tree either way, so the
+            "Reply sent" confirmation isn't lost when the order changes. */}
+        {daysFirst ? <YourDays days={days} isHousehold={invitation.inviteKind === "HOUSEHOLD"} /> : null}
         <section
           aria-labelledby="reply-heading"
           className="relative mt-12 border-t border-primary/10 pt-10 text-left"
         >
           <div className="mb-8 text-center">
             <h2 className="font-serif text-3xl text-primary" id="reply-heading">
-              Kindly reply
+              {everyoneReplied ? "Your reply" : "Kindly reply"}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {invitation.inviteKind === "HOUSEHOLD"
@@ -206,6 +221,7 @@ export function InvitationExperience({
 
           <PublicRsvpForm invitation={invitation} />
         </section>
+        {daysFirst ? null : <YourDays days={days} isHousehold={invitation.inviteKind === "HOUSEHOLD"} />}
       </article>
 
       <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-primary/60">

@@ -120,6 +120,15 @@
     transform: translateX(calc(300% + 12px));
   }
 
+  .segmented:has(
+      > :nth-child(5) input:checked,
+      > :nth-child(5)[aria-current="page"],
+      > :nth-child(5)[aria-selected="true"]
+    )
+    > .segmented-thumb {
+    transform: translateX(calc(400% + 16px));
+  }
+
   .segmented:not(:has(input:checked, [aria-current="page"], [aria-selected="true"])) > .segmented-thumb {
     opacity: 0;
   }

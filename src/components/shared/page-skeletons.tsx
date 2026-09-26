@@ -155,3 +155,16 @@ export function FloorPlanSkeleton() {
     </PageShell>
   );
 }
+
+export function DaysSkeleton() {
+  return (
+    <PageShell className="sm:py-10">
+      <HeaderSkeleton action={false} />
+      <section className="grid items-start gap-6 lg:grid-cols-2">
+        <BlockSkeleton lines={7} />
+        <BlockSkeleton lines={7} />
+      </section>
+      <BlockSkeleton lines={6} />
+    </PageShell>
+  );
+}

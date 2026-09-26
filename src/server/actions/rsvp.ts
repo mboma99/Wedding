@@ -2,6 +2,7 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
+
 import { redirect } from "next/navigation";
 
 import { InviteStatus, RsvpStatus } from "@/domain/enums";
@@ -13,10 +14,12 @@ import {
   type PublicRsvpFormValues,
 } from "@/features/rsvp/types";
 import { getDb, guestsCollection } from "@/server/db/firestore";
+import { guestsChanged } from "@/server/guest-cache";
 import {
   getPublicInvitationByToken,
   resolvePublicInvitationAccessToken,
 } from "@/server/queries/rsvp";
+import { RSVP_LOOKUP_LIMIT, blockedFor, recordAttempt, visitorKey } from "@/server/rate-limit";
 
 type PublicRsvpActionResult =
   | {
@@ -44,7 +47,14 @@ export async function resolvePublicRsvpLookupAction(
   _: PublicRsvpLookupState,
   formData: FormData,
 ): Promise<PublicRsvpLookupState> {
-  const lookupValue = String(formData.get("lookup") ?? "").trim();
+  const lookupValue = String(formData.get("lookup") ?? "").trim().slice(0, 500);
+  const visitor = await visitorKey();
+
+  if (blockedFor(RSVP_LOOKUP_LIMIT, visitor)) {
+    return {
+      error: "Too many tries. Please wait a few minutes, or use the link in your invitation.",
+    };
+  }
 
   if (!lookupValue) {
     return {
@@ -52,6 +62,7 @@ export async function resolvePublicRsvpLookupAction(
     };
   }
 
+  recordAttempt(RSVP_LOOKUP_LIMIT, visitor);
   const accessToken = await resolvePublicInvitationAccessToken(lookupValue);
 
   if (!accessToken) {
@@ -126,6 +137,7 @@ export async function submitPublicRsvpAction(
 
     await batch.commit();
 
+    guestsChanged();
     revalidatePath("/admin");
     revalidatePath("/admin/guests");
     revalidatePath(`/rsvp/${token}`);

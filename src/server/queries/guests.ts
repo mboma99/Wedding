@@ -19,7 +19,8 @@ import type {
 } from "@/features/guests/types";
 import { buildInviteCodeFromToken } from "@/lib/rsvp";
 import { guestsCollection } from "@/server/db/firestore";
-import { toGuestRecord, toGuestRecords, type GuestRecord } from "@/server/db/guest-doc";
+import { toGuestRecord, type GuestRecord } from "@/server/db/guest-doc";
+import { getAllGuestRecords } from "@/server/guest-cache";
 
 const PAGE_SIZE = 8;
 
@@ -38,9 +39,7 @@ type HouseholdInviteMaps = {
  * A guest list is a few hundred documents at most, well inside one read.
  */
 async function getAllGuests(): Promise<GuestRecord[]> {
-  const snapshot = await guestsCollection().get();
-
-  return toGuestRecords(snapshot.docs);
+  return getAllGuestRecords();
 }
 
 function matchesSearch(guest: GuestRecord, search: string) {

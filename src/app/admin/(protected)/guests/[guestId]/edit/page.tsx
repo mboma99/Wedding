@@ -5,6 +5,7 @@ import { getGuestFormInitialValues } from "@/features/guests/form-schema";
 import { GuestFormPage } from "@/features/guests/guest-form-page";
 import { getGuestForEdit, getHouseholdOptions } from "@/server/queries/guests";
 import { getPublicInvitationByToken } from "@/server/queries/rsvp";
+import { requireAdminSession } from "@/server/auth/admin";
 
 export const metadata: Metadata = {
   title: "Edit Guest | Traditional Wedding Admin",
@@ -23,6 +24,11 @@ type EditAdminGuestPageProps = {
 export default async function EditAdminGuestPage({
   params,
 }: EditAdminGuestPageProps) {
+  // Check the login before loading anything: the layout's check runs at the
+  // same time as the page, so on its own it lets logged-out visits (and bots
+  // probing /admin) trigger database reads before the redirect.
+  await requireAdminSession();
+
   const { guestId } = await params;
   const guest = await getGuestForEdit(guestId);
 

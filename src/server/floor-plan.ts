@@ -10,9 +10,9 @@ import {
 } from "@/domain/floor-plan";
 import { RsvpStatus } from "@/domain/enums";
 import type { SeatingGuest } from "@/domain/floor-plan";
-import { getDb, guestsCollection } from "@/server/db/firestore";
-import { toGuestRecords } from "@/server/db/guest-doc";
+import { getDb } from "@/server/db/firestore";
 import type { MutationResult } from "@/server/vendors";
+import { getAllGuestRecords } from "@/server/guest-cache";
 
 export const FLOOR_PLAN_DOC = "meta/floorPlan";
 
@@ -59,9 +59,7 @@ export async function getFloorPlan(): Promise<FloorPlan> {
  * so a table they were put at can show it; they don't count towards seats.
  */
 export async function getSeatingGuests(): Promise<SeatingGuest[]> {
-  const snapshot = await guestsCollection().get();
-
-  return toGuestRecords(snapshot.docs)
+  return (await getAllGuestRecords())
     .map((guest) => ({
       id: guest.id,
       name: guest.fullName,

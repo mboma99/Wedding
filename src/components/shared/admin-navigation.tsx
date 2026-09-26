@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import {
   DashboardSkeleton,
+  DaysSkeleton,
   FloorPlanSkeleton,
   GuestListSkeleton,
   VendorsSkeleton,
@@ -30,6 +31,7 @@ const SKELETONS: Record<string, () => ReactNode> = {
   "/admin/guests": GuestListSkeleton,
   "/admin/vendors": VendorsSkeleton,
   "/admin/floor-plan": FloorPlanSkeleton,
+  "/admin/days": DaysSkeleton,
 };
 
 /**
