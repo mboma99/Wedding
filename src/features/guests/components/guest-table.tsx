@@ -63,17 +63,28 @@ function SelectGuestCheckbox({
 function ContactDetails({
   email,
   phone,
-}: Pick<GuestListItem, "email" | "phone">) {
+  compact = false,
+}: Pick<GuestListItem, "email" | "phone"> & { compact?: boolean }) {
+  // Most guests have no contact details yet, and "No email / No phone"
+  // placeholders doubled the height of every card on a phone.
+  if (compact && !email && !phone) {
+    return null;
+  }
+
   return (
     <div className="space-y-2 text-sm text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <Mail className="h-4 w-4 shrink-0 text-primary" />
-        <span className="break-all">{email ?? "No email"}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Phone className="h-4 w-4 shrink-0 text-primary" />
-        <span className="break-all">{phone ?? "No phone"}</span>
-      </div>
+      {email || !compact ? (
+        <div className="flex items-center gap-2">
+          <Mail className="h-4 w-4 shrink-0 text-primary" />
+          <span className="break-all">{email ?? "No email"}</span>
+        </div>
+      ) : null}
+      {phone || !compact ? (
+        <div className="flex items-center gap-2">
+          <Phone className="h-4 w-4 shrink-0 text-primary" />
+          <span className="break-all">{phone ?? "No phone"}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -157,12 +168,12 @@ function MobileGuestCards({
   onToggle,
 }: GuestTableProps & SelectionProps) {
   return (
-    <div className="grid gap-4 md:hidden">
+    <div className="grid gap-3 md:hidden">
       {guests.map((guest) => (
         <div
           key={guest.id}
           className={cn(
-            "rounded-[1.5rem] border p-4",
+            "rounded-[1.5rem] border p-3.5",
             guest.side === "JAMES"
               ? "border-james/15 bg-james/5"
               : "border-lisa/15 bg-lisa/5",
@@ -188,7 +199,7 @@ function MobileGuestCards({
             <SideBadge side={guest.side} />
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             <GroupTypeBadge groupType={guest.groupType} />
             <GuestTypeBadge guestType={guest.guestType} />
             {guest.invitation ? (
@@ -199,22 +210,25 @@ function MobileGuestCards({
             ) : null}
           </div>
 
-          <div className="mt-4 grid gap-4">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Contact
-              </p>
-              <ContactDetails email={guest.email} phone={guest.phone} />
+          {guest.email || guest.phone ? (
+            <div className="mt-3">
+              <ContactDetails compact email={guest.email} phone={guest.phone} />
             </div>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Invitation
-              </p>
-              <InvitationDetails invitation={guest.invitation} />
-            </div>
-          </div>
+          ) : null}
 
-          <div className="mt-4">
+          {guest.invitation?.inviteKind === "HOUSEHOLD" ||
+          guest.invitation?.plusOneAllowed ? (
+            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+              {guest.invitation.inviteKind === "HOUSEHOLD" ? (
+                <p className="uppercase tracking-[0.2em]">
+                  {`Household invite · ${guest.invitation.householdGuestCount} guests`}
+                </p>
+              ) : null}
+              {guest.invitation.plusOneAllowed ? <p>Plus one enabled</p> : null}
+            </div>
+          ) : null}
+
+          <div className="mt-3">
             <GuestActions guest={guest} />
           </div>
         </div>
@@ -433,14 +447,14 @@ export function GuestTable({
                 </tbody>
               </table>
             </div>
+            {/* Direct child of the tall card body: a wrapper would collapse the
+                sticky scroll range and pin it to the end of the list instead. */}
             {selectedGuests.length ? (
-              <div className="mt-4">
-                <HouseholdGroupingToolbar
-                  householdOptions={householdOptions}
-                  onClearSelection={() => setSelectedIds(new Set())}
-                  selectedGuests={selectedGuests}
-                />
-              </div>
+              <HouseholdGroupingToolbar
+                householdOptions={householdOptions}
+                onClearSelection={() => setSelectedIds(new Set())}
+                selectedGuests={selectedGuests}
+              />
             ) : null}
           </>
         )}

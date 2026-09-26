@@ -26,12 +26,12 @@ export function KpiCard({
 }: KpiCardProps) {
   return (
     <Card className="overflow-hidden border-white/80 bg-white/85">
-      <CardContent className="flex items-start justify-between gap-3 p-5">
+      <CardContent className="flex items-start justify-between gap-2 p-4 sm:gap-3 sm:p-5">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             {title}
           </p>
-          <p className="text-3xl font-semibold tracking-tight text-primary sm:text-4xl">
+          <p className="text-2xl font-semibold tracking-tight text-primary sm:text-4xl">
             {value}
           </p>
         </div>

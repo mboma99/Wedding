@@ -28,12 +28,12 @@ export function GuestListPagination({
         <span className="font-semibold text-primary">{pageEnd}</span> of{" "}
         <span className="font-semibold text-primary">{totalGuests}</span> guests
       </p>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-row items-center gap-2 sm:gap-3">
         <Button
           asChild
           variant="outline"
           size="sm"
-          className={`w-full sm:w-auto ${
+          className={`flex-1 sm:w-auto sm:flex-none ${
             page <= 1 ? "pointer-events-none opacity-50" : ""
           }`}
         >
@@ -42,14 +42,14 @@ export function GuestListPagination({
             Previous
           </Link>
         </Button>
-        <div className="rounded-full border border-border bg-white/85 px-4 py-2 text-center text-sm font-medium text-primary">
+        <div className="shrink-0 rounded-full border border-border bg-white/85 px-3 py-2 text-center text-xs font-medium text-primary sm:px-4 sm:text-sm">
           Page {page} of {totalPages}
         </div>
         <Button
           asChild
           variant="outline"
           size="sm"
-          className={`w-full sm:w-auto ${
+          className={`flex-1 sm:w-auto sm:flex-none ${
             page >= totalPages ? "pointer-events-none opacity-50" : ""
           }`}
         >

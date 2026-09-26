@@ -80,7 +80,7 @@ export function HouseholdGroupingToolbar({
   }
 
   return (
-    <div className="sticky bottom-4 z-20 rounded-[1.5rem] border border-primary/20 bg-white/95 p-4 shadow-lg backdrop-blur sm:p-5">
+    <div className="sticky bottom-3 z-20 mt-4 rounded-[1.5rem] border border-primary/20 bg-white/95 p-3.5 shadow-lg backdrop-blur sm:bottom-4 sm:p-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -91,7 +91,7 @@ export function HouseholdGroupingToolbar({
               <p className="text-sm font-semibold text-primary">
                 {selectedGuests.length} selected
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="line-clamp-2 text-sm text-muted-foreground">
                 {selectedGuests.map((guest) => guest.fullName).join(", ")}
               </p>
             </div>

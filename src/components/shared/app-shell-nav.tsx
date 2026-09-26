@@ -16,11 +16,11 @@ type AppShellNavProps = {
 
 export function AppShellNav({ currentPath }: AppShellNavProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <Badge variant="outline" className="w-fit bg-white/80">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <Badge variant="outline" className="hidden w-fit bg-white/80 sm:inline-flex">
         Traditional wedding
       </Badge>
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="flex flex-row items-center gap-2 sm:flex-wrap sm:gap-3">
         <nav className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-border bg-white/85 p-1 shadow-sm">
           {navigationItems.map((item) => {
             const isActive = item.href === currentPath;
@@ -41,8 +41,8 @@ export function AppShellNav({ currentPath }: AppShellNavProps) {
             );
           })}
         </nav>
-        <form action={logoutAdminAction} className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto" size="sm" type="submit" variant="outline">
+        <form action={logoutAdminAction} className="shrink-0">
+          <Button size="sm" type="submit" variant="outline">
             Sign out
           </Button>
         </form>
