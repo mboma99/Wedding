@@ -3,6 +3,7 @@ import {
   buildInviteCodeFromToken,
   normalizeInviteCode,
   normalizeInviteTokenCandidate,
+  normalizePhoneKey,
   RSVP_CODE_LENGTH,
 } from "@/lib/rsvp";
 import { guestsCollection } from "@/server/db/firestore";
@@ -90,9 +91,48 @@ export async function getPublicInvitationByToken(
   };
 }
 
+async function resolveAccessTokenByPhone(
+  phoneKey: string,
+): Promise<string | null> {
+  // Phones are stored free-form, so they are matched in memory rather than
+  // with an equality query. The guest list is small enough to scan.
+  const snapshot = await guestsCollection()
+    .select("phone", "householdName", "side", "invitation")
+    .get();
+
+  const matchingGuests = toGuestRecords(snapshot.docs).filter(
+    (guest) => guest.invitation && normalizePhoneKey(guest.phone) === phoneKey,
+  );
+  const accessTokens = new Set<string>();
+
+  for (const guest of matchingGuests) {
+    const publicInvitation = await getPublicInvitationByToken(
+      guest.invitation!.inviteToken,
+    );
+
+    if (publicInvitation) {
+      accessTokens.add(publicInvitation.accessToken);
+    }
+  }
+
+  // Guests in one household sharing a number collapse to one invitation; a
+  // number shared across separate invitations is ambiguous, so it fails.
+  return accessTokens.size === 1 ? [...accessTokens][0] : null;
+}
+
 export async function resolvePublicInvitationAccessToken(
   lookupValue: string,
 ): Promise<string | null> {
+  const phoneKey = normalizePhoneKey(lookupValue);
+
+  if (phoneKey) {
+    const accessToken = await resolveAccessTokenByPhone(phoneKey);
+
+    if (accessToken) {
+      return accessToken;
+    }
+  }
+
   const tokenCandidate = normalizeInviteTokenCandidate(lookupValue);
   const exactTokenCandidates = Array.from(
     new Set([tokenCandidate, tokenCandidate.toLowerCase()].filter(Boolean)),

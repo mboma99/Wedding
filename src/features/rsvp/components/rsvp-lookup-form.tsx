@@ -39,7 +39,7 @@ export function RsvpLookupForm({ tone = "default" }: RsvpLookupFormProps) {
             isLight ? "text-white" : "text-muted-foreground",
           )}
         >
-          RSVP code or invitation link
+          Phone number, RSVP code, or invitation link
         </span>
         <div className="relative">
           <KeyRound
@@ -56,7 +56,7 @@ export function RsvpLookupForm({ tone = "default" }: RsvpLookupFormProps) {
                 : "bg-white/90",
             )}
             name="lookup"
-            placeholder="Enter code like ABCD-1234 or paste your RSVP link"
+            placeholder="Enter your phone number or code like ABCD-1234"
           />
         </div>
       </label>
@@ -76,8 +76,8 @@ export function RsvpLookupForm({ tone = "default" }: RsvpLookupFormProps) {
           )}
         />
         <p>
-          Every invitation includes a short RSVP code. You can type that code here
-          or paste the full RSVP link sent by phone or email.
+          Enter the phone number we have on file for you, or type the short RSVP
+          code from your invitation. You can also paste the full RSVP link.
         </p>
       </div>
 
