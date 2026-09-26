@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Playfair_Display } from "next/font/google";
 import { ChevronDown, Heart, LockKeyhole, MapPinHouse, MessageCircleHeart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -7,23 +6,10 @@ import { LandingHeroMedia } from "@/features/home/components/landing-hero-media"
 import { WeddingCountdown } from "@/features/home/components/wedding-countdown";
 import { RsvpLookupForm } from "@/features/rsvp/components/rsvp-lookup-form";
 import { getDaysSinceDate } from "@/lib/date";
+import { displayFont } from "@/lib/fonts";
+import { weddingDate } from "@/lib/wedding";
 import { getLandingMedia } from "@/server/content/landing-media";
 
-const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const weddingDate: {
-  targetDate: string;
-  dateLabel: string;
-} | null = null;
-// Set `weddingDate` to `null` while the date is TBC.
-// Use this shape when the date is confirmed:
-// const weddingDate = {
-//   targetDate: "2027-07-12T00:00:00Z",
-//   dateLabel: "12th July 2027",
-// };
 
 function SectionHeading({
   eyebrow,
@@ -95,7 +81,7 @@ export async function LandingPage() {
           <div className="relative px-5 pb-5 pt-[7.75rem] sm:px-10 sm:py-8 lg:px-14 lg:py-10">
             <header className="fixed inset-x-0 top-0 z-40 flex flex-col gap-5 bg-black px-5 py-4 text-[0.65rem] uppercase tracking-[0.24em] text-white shadow-lg shadow-black/25 sm:static sm:z-auto sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-4 sm:bg-transparent sm:px-0 sm:py-0 sm:text-[0.7rem] sm:shadow-none">
               <p
-                className={`${playfairDisplay.className} text-center text-4xl normal-case tracking-[0.04em] text-white sm:hidden`}
+                className={`${displayFont.className} text-center text-4xl normal-case tracking-[0.04em] text-white sm:hidden`}
               >
                 J &amp; L
               </p>
@@ -117,7 +103,7 @@ export async function LandingPage() {
                 </a>
               </nav>
               <p
-                className={`${playfairDisplay.className} hidden text-center text-4xl normal-case tracking-[0.04em] text-white sm:block sm:justify-self-center`}
+                className={`${displayFont.className} hidden text-center text-4xl normal-case tracking-[0.04em] text-white sm:block sm:justify-self-center`}
               >
                 J &amp; L
               </p>
@@ -131,11 +117,11 @@ export async function LandingPage() {
 
             <div className="relative flex min-h-[calc(100svh-7.75rem)] flex-col items-center px-1 pb-28 pt-8 text-center text-white sm:min-h-[76vh] sm:justify-center sm:px-2 sm:py-20 lg:min-h-[82vh]">
               <div className="mt-24 max-w-5xl space-y-5 sm:mt-0 sm:space-y-6">
-                <p className={`${playfairDisplay.className} text-4xl text-white sm:text-5xl`}>
+                <p className={`${displayFont.className} text-4xl text-white sm:text-5xl`}>
                   We&apos;re Getting Married!
                 </p>
                 <h1
-                  className={`${playfairDisplay.className} text-6xl leading-[0.9] sm:text-8xl lg:text-[8.8rem]`}
+                  className={`${displayFont.className} text-6xl leading-[0.9] sm:text-8xl lg:text-[8.8rem]`}
                 >
                   James &amp; Lisa
                 </h1>
