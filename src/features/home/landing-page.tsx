@@ -71,24 +71,22 @@ export async function LandingPage() {
 
             <div className="relative flex min-h-[calc(100svh-1.25rem)] flex-col items-center px-1 pb-28 pt-8 text-center text-white [text-shadow:0_2px_28px_rgba(0,0,0,0.4)] sm:min-h-[76vh] sm:justify-center sm:px-2 sm:py-20 lg:min-h-[82vh]">
               <div className="mt-40 max-w-5xl space-y-5 sm:mt-0 sm:space-y-7">
-                <p className={`${displayFont.className} text-3xl italic text-white/95 sm:text-5xl`}>
+                <p className={`${displayFont.className} text-3xl italic text-white sm:text-5xl`}>
                   We&apos;re getting married
                 </p>
                 <h1
                   className={`${displayFont.className} text-6xl leading-[0.9] tracking-[-0.01em] sm:text-8xl lg:text-[8.8rem]`}
                 >
-                  James <span className="italic text-white/90">&amp;</span> Lisa
+                  James <span className="italic text-white">&amp;</span> Lisa
                 </h1>
                 <div aria-hidden className="flex items-center justify-center gap-4 pt-1 sm:pt-2">
                   <span className="h-px w-12 bg-white/60 sm:w-20" />
-                  <Heart className="h-3.5 w-3.5 fill-white/80 text-white/80" />
+                  <Heart className="h-3.5 w-3.5 fill-white text-white" />
                   <span className="h-px w-12 bg-white/60 sm:w-20" />
                 </div>
                 {weddingDate ? null : (
-                  <p className="flex flex-col gap-1.5 text-xs font-medium uppercase tracking-[0.3em] text-white/90 sm:flex-row sm:justify-center sm:gap-3 sm:text-sm">
-                    <span>Traditional wedding</span>
-                    <span aria-hidden className="hidden sm:inline">·</span>
-                    <span>Date to be announced</span>
+                  <p className="text-xs font-medium uppercase tracking-[0.3em] text-white sm:text-sm">
+                    Traditional wedding
                   </p>
                 )}
                 {weddingDate ? (
@@ -119,7 +117,7 @@ export async function LandingPage() {
                 </div>
                 <a
                   href="#story"
-                  className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-white transition-opacity hover:opacity-70 sm:tracking-[0.26em]"
+                  className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-white underline-offset-4 hover:underline sm:tracking-[0.26em]"
                 >
                   Scroll
                   <ChevronDown className="h-4 w-4 motion-safe:animate-scroll-nudge" />
@@ -132,7 +130,7 @@ export async function LandingPage() {
 
       <section className="container mt-16 grid gap-12 sm:mt-24 lg:grid-cols-2 lg:gap-0">
         <div className="scroll-mt-24 lg:pr-14" id="story">
-          <p className="font-serif text-lg italic text-primary/70">Our story</p>
+          <p className="font-serif text-lg italic text-primary">Our story</p>
           <p className="mt-3 font-serif text-7xl leading-none tracking-tight text-primary tabular-nums sm:text-8xl">
             {daysSinceMet.toLocaleString("en-GB")}
           </p>
@@ -142,7 +140,7 @@ export async function LandingPage() {
         </div>
 
         <div className="scroll-mt-24 border-t border-primary/10 pt-12 lg:border-l lg:border-t-0 lg:pl-14 lg:pt-0" id="registry">
-          <p className="font-serif text-lg italic text-primary/70">Registry</p>
+          <p className="font-serif text-lg italic text-primary">Registry</p>
           {registryUrl ? (
             <>
               <h2 className="mt-3 text-balance font-serif text-3xl leading-tight text-primary sm:text-5xl">
@@ -169,11 +167,11 @@ export async function LandingPage() {
 
       <section className="container mt-16 scroll-mt-24 sm:mt-24" id="rsvp">
         <div className="rounded-[2rem] border border-primary/10 bg-primary px-6 py-12 text-center text-primary-foreground shadow-soft sm:px-10 sm:py-16">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary-foreground/60">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary-foreground">
             RSVP
           </p>
           <h2 className="mt-3 font-serif text-3xl sm:text-5xl">Will you join us?</h2>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-primary-foreground/75 sm:text-base">
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-primary-foreground sm:text-base">
             Use your email, phone number or RSVP code.
           </p>
           <div className="mx-auto mt-8 max-w-xl text-left">
@@ -187,7 +185,7 @@ export async function LandingPage() {
           <p>&copy; {currentYear} James &amp; Lisa. All rights reserved.</p>
           <Link
             href="/admin/login"
-            className="text-xs text-muted-foreground/60 transition-colors hover:text-primary"
+            className="text-xs text-muted-foreground transition-colors hover:text-primary"
           >
             Admin
           </Link>

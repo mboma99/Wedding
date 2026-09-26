@@ -22,7 +22,7 @@ export function LandingHeader() {
   }, []);
 
   const separator = (
-    <span aria-hidden="true" className="text-white/60">
+    <span aria-hidden="true" className="text-white">
       &middot;
     </span>
   );
@@ -50,11 +50,11 @@ export function LandingHeader() {
           J &amp; L
         </a>
         <nav className="flex items-center gap-3 sm:justify-self-start sm:gap-6">
-          <a className="transition-opacity hover:opacity-70" href="#story">
+          <a className="underline-offset-4 hover:underline" href="#story">
             Our story
           </a>
           {separator}
-          <a className="transition-opacity hover:opacity-70" href="#registry">
+          <a className="underline-offset-4 hover:underline" href="#registry">
             Registry
           </a>
         </nav>

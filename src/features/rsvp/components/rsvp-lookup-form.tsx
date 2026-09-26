@@ -39,7 +39,7 @@ export function RsvpLookupForm({ tone = "default" }: RsvpLookupFormProps) {
           <KeyRound
             className={cn(
               "pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2",
-              isLight ? "text-white/65" : "text-muted-foreground",
+              isLight ? "text-white" : "text-muted-foreground",
             )}
           />
           <Input
@@ -47,7 +47,7 @@ export function RsvpLookupForm({ tone = "default" }: RsvpLookupFormProps) {
             className={cn(
               "h-12 pl-10",
               isLight
-                ? "border-white/20 bg-white/10 text-white placeholder:text-white/60"
+                ? "border-white/20 bg-white/10 text-white placeholder:text-[#c3c9da]"
                 : "bg-white/90",
             )}
             name="lookup"
@@ -70,7 +70,7 @@ export function RsvpLookupForm({ tone = "default" }: RsvpLookupFormProps) {
       <p
         className={cn(
           "text-sm",
-          isLight ? "text-center text-white/70" : "text-muted-foreground",
+          isLight ? "text-center text-white" : "text-muted-foreground",
         )}
       >
         Got a link instead? Paste it here.
