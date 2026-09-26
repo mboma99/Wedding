@@ -245,7 +245,7 @@ export function LandingHeroMedia({
               videoRefs.current[index] = node;
             }}
             autoPlay={index === 0}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${
               index === activeVideoIndex ? "opacity-100" : "opacity-0"
             }`}
             loop={videos.length === 1}

@@ -134,7 +134,7 @@ export function GuestListFilters({ filters }: GuestListFiltersProps) {
       {/* Kept mounted while hidden so the selects still submit with a search. */}
       <div
         className={cn(
-          "space-y-4 rounded-[var(--card-radius)] border border-border/80 bg-card p-4",
+          "animate-enter space-y-4 rounded-[var(--card-radius)] border border-border/80 bg-card p-4",
           !isExpanded && "hidden",
         )}
       >

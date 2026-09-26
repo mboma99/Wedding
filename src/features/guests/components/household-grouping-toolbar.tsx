@@ -80,7 +80,7 @@ export function HouseholdGroupingToolbar({
   }
 
   return (
-    <div className="sticky bottom-3 z-20 mt-4 rounded-[var(--card-radius)] border border-primary/20 bg-white/95 p-3.5 shadow-lg backdrop-blur sm:bottom-4 sm:p-5">
+    <div className="animate-enter sticky bottom-3 z-20 mt-4 rounded-[var(--card-radius)] border border-primary/20 bg-white/95 p-3.5 shadow-lg backdrop-blur sm:bottom-4 sm:p-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { CSSProperties } from "react";
 import { LogOut } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -36,7 +37,8 @@ export function AdminNav() {
 
         <nav
           aria-label="Admin"
-          className="order-last grid w-full grid-cols-3 gap-1 rounded-lg bg-muted/70 p-1 sm:order-none sm:flex sm:w-auto sm:bg-transparent sm:p-0"
+          className="segmented order-last grid w-full grid-cols-3 gap-1 rounded-[var(--segment-radius)] bg-muted/70 p-1 sm:order-none sm:w-80"
+          style={{ "--segments": navigationItems.length } as CSSProperties}
         >
           {navigationItems.map((item) => {
             const active = isActive(pathname, item.href);
@@ -45,10 +47,8 @@ export function AdminNav() {
               <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-center text-sm font-medium transition-colors",
-                  active
-                    ? "bg-white text-primary shadow-sm sm:bg-muted"
-                    : "text-muted-foreground hover:text-primary sm:hover:bg-muted/60",
+                  "rounded-[calc(var(--segment-radius)_-_4px)] px-3 py-1.5 text-center text-sm font-medium transition-colors",
+                  active ? "text-primary" : "text-muted-foreground hover:text-primary",
                 )}
                 href={item.href}
                 key={item.href}
@@ -57,6 +57,7 @@ export function AdminNav() {
               </Link>
             );
           })}
+          <span aria-hidden className="segmented-thumb" />
         </nav>
 
         <form action={logoutAdminAction} className="ml-auto">

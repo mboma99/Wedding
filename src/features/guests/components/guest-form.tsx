@@ -2,14 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useState, type ReactNode } from "react";
+import {
+  Children,
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save, UserPlus } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +46,7 @@ import {
   rsvpStatusOptions,
   sideLabels,
 } from "@/features/guests/types";
+import { cn } from "@/lib/utils";
 
 type HouseholdLinkMode = "INDIVIDUAL" | "EXISTING" | "CUSTOM";
 
@@ -81,34 +91,123 @@ function getInitialHouseholdKey(
   return matchingHousehold ? buildHouseholdOptionKey(matchingHousehold) : "";
 }
 
-function FieldError({ message }: { message?: string }) {
-  if (!message) {
-    return null;
-  }
+type FieldName = keyof GuestFormValues;
 
-  return <p className="text-sm text-rose-600">{message}</p>;
+function fieldId(name: FieldName) {
+  return `guest-${name}`;
 }
 
+/** Label above, helper and error below, all wired to the control by id. */
 function FormField({
+  name,
   label,
   hint,
+  optional = false,
   error,
   children,
+  className,
 }: {
+  name: FieldName;
   label: string;
   hint?: string;
+  optional?: boolean;
   error?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      <label
+        className="flex items-baseline justify-between gap-2 text-sm font-medium text-primary"
+        htmlFor={fieldId(name)}
+      >
+        {label}
+        {optional ? (
+          <span className="text-xs font-normal text-muted-foreground">Optional</span>
+        ) : null}
+      </label>
+      {children}
+      {hint && !error ? (
+        <p className="text-xs text-muted-foreground" id={`${fieldId(name)}-hint`}>
+          {hint}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="text-sm text-destructive" id={`${fieldId(name)}-error`}>
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** A segmented control built from real radios, so keyboard and forms just work. */
+function ChoiceGroup({
+  legend,
+  children,
+  className,
+  hint,
+  wrap = false,
+}: {
+  legend: string;
+  children: ReactNode;
+  className?: string;
+  hint?: ReactNode;
+  /** Set when the options wrap onto two rows on phones. */
+  wrap?: boolean;
+}) {
+  return (
+    <fieldset className="min-w-0 space-y-2">
+      <legend className="mb-2 text-sm font-medium text-primary">{legend}</legend>
+      <div
+        className={cn(
+          "segmented grid auto-cols-fr grid-flow-col gap-1 rounded-[var(--segment-radius)] bg-muted/70 p-1",
+          className,
+        )}
+        data-wrap={wrap || undefined}
+        style={{ "--segments": Children.count(children) } as CSSProperties}
+      >
+        {children}
+        <span aria-hidden className="segmented-thumb" />
+      </div>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+    </fieldset>
+  );
+}
+
+function Choice({
+  children,
+  ...inputProps
+}: Omit<ComponentProps<"input">, "type" | "className">) {
+  return (
+    <label className="relative min-w-0">
+      <input className="peer sr-only" type="radio" {...inputProps} />
+      <span className="flex h-9 cursor-pointer items-center justify-center gap-2 truncate rounded-[calc(var(--segment-radius)_-_4px)] px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-45 peer-disabled:hover:text-muted-foreground">
+        {children}
+      </span>
+    </label>
+  );
+}
+
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-      </div>
-      {children}
-      <FieldError message={error} />
-    </div>
+    <Card>
+      <CardContent className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[12rem_1fr] lg:gap-8">
+        <div className="space-y-1">
+          <h2 className="font-serif text-xl text-primary">{title}</h2>
+          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+        <div className="min-w-0 space-y-5">{children}</div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -238,32 +337,40 @@ export function GuestForm({
     });
   }
 
+  const isCreateMode = mode === "create";
+  // Which submit button was pressed; both submit the same form.
+  const submitIntentRef = useRef<"done" | "another">("done");
+  const [showStatusFields, setShowStatusFields] = useState(!isCreateMode);
+  const errors = form.formState.errors;
+
+  function describe(name: FieldName, hasHint = false) {
+    const error = errors[name]?.message;
+
+    return {
+      id: fieldId(name),
+      "aria-invalid": error ? true : undefined,
+      "aria-describedby": error
+        ? `${fieldId(name)}-error`
+        : hasHint
+          ? `${fieldId(name)}-hint`
+          : undefined,
+    };
+  }
+
   const onSubmit = form.handleSubmit((values) => {
     setServerMessage(null);
     setIsPending(true);
 
     startTransition(async () => {
-      if (mode === "edit" && !guestId) {
+      if (!isCreateMode && !guestId) {
         setServerMessage("This guest record cannot be updated right now.");
         setIsPending(false);
         return;
       }
 
-      let result;
-
-      if (mode === "create") {
-        result = await createGuestAction(values);
-      } else {
-        const editGuestId = guestId;
-
-        if (!editGuestId) {
-          setServerMessage("This guest record cannot be updated right now.");
-          setIsPending(false);
-          return;
-        }
-
-        result = await updateGuestAction(editGuestId, values);
-      }
+      const result = isCreateMode
+        ? await createGuestAction(values)
+        : await updateGuestAction(guestId!, values);
 
       if (!result.success) {
         setServerMessage(result.message);
@@ -271,357 +378,342 @@ export function GuestForm({
         return;
       }
 
-      toast.success(mode === "create" ? `Added ${values.fullName}` : "Changes saved");
+      if (isCreateMode && submitIntentRef.current === "another") {
+        // Families are entered back to back, so keep who they are grouped
+        // with and clear everything personal.
+        form.reset({
+          ...getEmptyGuestFormValues(),
+          side: values.side,
+          groupType: values.groupType,
+          guestType: values.guestType,
+          householdName: values.householdName,
+        });
+        submitIntentRef.current = "done";
+        setIsPending(false);
+        toast.success(`Added ${values.fullName}`, {
+          description: "Ready for the next guest.",
+        });
+        router.refresh();
+        requestAnimationFrame(() => form.setFocus("fullName"));
+        return;
+      }
+
+      toast.success(isCreateMode ? `Added ${values.fullName}` : "Changes saved");
       router.push("/admin/guests");
       router.refresh();
     });
   });
 
+  const householdSummary =
+    householdMode === "EXISTING" && selectedHousehold
+      ? `Joins the ${selectedHousehold.householdName} household. One RSVP link will cover ${resultingHouseholdGuestCount} guests.`
+      : householdMode === "CUSTOM" && householdName
+        ? matchingTypedHousehold
+          ? `Matches the existing ${householdName} household. One RSVP link will cover ${resultingHouseholdGuestCount} guests.`
+          : `Starts the ${householdName} household. Guests added to it later will share this RSVP link.`
+        : null;
+
   return (
-    <form className="space-y-5 sm:space-y-6" onSubmit={onSubmit}>
+    <form className="space-y-4 sm:space-y-5" noValidate onSubmit={onSubmit}>
       {serverMessage ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+        <div
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+          role="alert"
+        >
           {serverMessage}
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Guest profile</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <FormField
-            label="Full name"
-            error={form.formState.errors.fullName?.message}
-          >
-            <Input
-              disabled={isPending}
-              placeholder="e.g. Mrs. Abena Asante"
-              {...form.register("fullName")}
-            />
-          </FormField>
+      <fieldset className="min-w-0 space-y-4 sm:space-y-5" disabled={isPending}>
+        <FormSection
+          description="Who they are and whose side of the family they're on."
+          title="Guest"
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FormField error={errors.fullName?.message} label="Full name" name="fullName">
+              <Input
+                autoComplete="off"
+                autoFocus={isCreateMode}
+                placeholder="e.g. Abena Asante"
+                {...describe("fullName")}
+                {...form.register("fullName")}
+              />
+            </FormField>
 
-          <FormField
-            label="Relation"
-            error={form.formState.errors.relation?.message}
-          >
-            <Input
-              disabled={isPending}
-              placeholder="e.g. Mother's cousin"
-              {...form.register("relation")}
-            />
-          </FormField>
-
-          <FormField label="Side" error={form.formState.errors.side?.message}>
-            <Select
-              disabled={isPending}
-              {...form.register("side")}
-            >
-              {guestSideOptions.map((side) => (
-                <option key={side} value={side}>
-                  {sideLabels[side]}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-
-          <FormField
-            label="Group type"
-            error={form.formState.errors.groupType?.message}
-          >
-            <Select
-              disabled={isPending}
-              {...form.register("groupType")}
-            >
-              {groupTypeOptions.map((groupType) => (
-                <option key={groupType} value={groupType}>
-                  {groupTypeLabels[groupType]}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-
-          <FormField
-            label="Guest type"
-            error={form.formState.errors.guestType?.message}
-          >
-            <Select
-              disabled={isPending}
-              {...form.register("guestType")}
-            >
-              {guestTypeOptions.map((guestType) => (
-                <option key={guestType} value={guestType}>
-                  {guestTypeLabels[guestType]}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-
-          <FormField
-            label="Household name"
-            error={form.formState.errors.householdName?.message}
-          >
-            <div className="space-y-4 rounded-xl border border-border/80 bg-muted/20 p-4">
-              <div className="grid gap-3">
-                <label className="rounded-lg border border-border/80 bg-white/70 p-4">
-                  <div className="flex items-start gap-3">
-                    <input
-                      checked={householdMode === "INDIVIDUAL"}
-                      className="mt-1 h-4 w-4"
-                      disabled={isPending}
-                      name="household-mode"
-                      onChange={() => handleHouseholdModeChange("INDIVIDUAL")}
-                      type="radio"
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-primary">
-                        Individual invite
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Keep this guest on their own invitation link.
-                      </p>
-                    </div>
-                  </div>
-                </label>
-
-                <label className="rounded-lg border border-border/80 bg-white/70 p-4">
-                  <div className="flex items-start gap-3">
-                    <input
-                      checked={householdMode === "EXISTING"}
-                      className="mt-1 h-4 w-4"
-                      disabled={isPending || availableHouseholds.length === 0}
-                      name="household-mode"
-                      onChange={() => handleHouseholdModeChange("EXISTING")}
-                      type="radio"
-                    />
-                    <div className="w-full space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-primary">
-                          Link to an existing household invite
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Attach this guest to a household already on the{" "}
-                          {sideLabels[side]}.
-                        </p>
-                      </div>
-                      <Select
-                        disabled={
-                          isPending ||
-                          householdMode !== "EXISTING" ||
-                          availableHouseholds.length === 0
-                        }
-                        onChange={(event) =>
-                          handleExistingHouseholdChange(event.target.value)
-                        }
-                        value={
-                          selectedHousehold
-                            ? buildHouseholdOptionKey(selectedHousehold)
-                            : ""
-                        }
-                      >
-                        {availableHouseholds.length === 0 ? (
-                          <option value="">
-                            No existing households on {sideLabels[side]}
-                          </option>
-                        ) : (
-                          availableHouseholds.map((household) => (
-                            <option
-                              key={buildHouseholdOptionKey(household)}
-                              value={buildHouseholdOptionKey(household)}
-                            >
-                              {household.householdName} · {household.linkedGuestCount}{" "}
-                              linked guest
-                              {household.linkedGuestCount === 1 ? "" : "s"}
-                            </option>
-                          ))
-                        )}
-                      </Select>
-                    </div>
-                  </div>
-                </label>
-
-                <label className="rounded-lg border border-border/80 bg-white/70 p-4">
-                  <div className="flex items-start gap-3">
-                    <input
-                      checked={householdMode === "CUSTOM"}
-                      className="mt-1 h-4 w-4"
-                      disabled={isPending}
-                      name="household-mode"
-                      onChange={() => handleHouseholdModeChange("CUSTOM")}
-                      type="radio"
-                    />
-                    <div className="w-full space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-primary">
-                          Create or rename a household invite
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Use this when starting a new household that more guests
-                          can join later.
-                        </p>
-                      </div>
-                      <Input
-                        disabled={isPending || householdMode !== "CUSTOM"}
-                        placeholder="e.g. Asante Family"
-                        {...form.register("householdName")}
-                      />
-                    </div>
-                  </div>
-                </label>
-              </div>
-
-              <div className="rounded-lg border border-border/70 bg-white/80 px-4 py-3 text-sm text-muted-foreground">
-                {householdMode === "EXISTING" && selectedHousehold ? (
-                  <span>
-                    This guest will join the {selectedHousehold.householdName}{" "}
-                    household. The invite will cover{" "}
-                    {resultingHouseholdGuestCount} guests.
-                  </span>
-                ) : null}
-                {householdMode === "CUSTOM" && householdName ? (
-                  <span>
-                    {matchingTypedHousehold
-                      ? `This matches the existing ${householdName} household. The invite will cover ${resultingHouseholdGuestCount} guests.`
-                      : `This starts the ${householdName} household. It becomes a household invite as soon as another guest is linked to the same household.`}
-                  </span>
-                ) : null}
-                {householdMode === "INDIVIDUAL" ? (
-                  <span>
-                    This guest will use an individual invite link until they are
-                    linked into a household.
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </FormField>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Contact channels</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <FormField
-            label="Email address"
-            error={form.formState.errors.email?.message}
-          >
-            <Input
-              disabled={isPending}
-              placeholder="name@example.com"
-              type="email"
-              {...form.register("email")}
-            />
-          </FormField>
-
-          <FormField
-            label="Phone number"
-            error={form.formState.errors.phone?.message}
-          >
-            <Input
-              disabled={isPending}
-              placeholder="+233240000001"
-              {...form.register("phone")}
-            />
-          </FormField>
-
-          <div className="md:col-span-2">
             <FormField
-              label="Notes"
-              hint="Optional planning context, seating details, or outreach reminders."
-              error={form.formState.errors.notes?.message}
+              error={errors.relation?.message}
+              label="Relation"
+              name="relation"
             >
-              <Textarea
-                disabled={isPending}
-                placeholder="Add any guest-specific planning notes"
-                {...form.register("notes")}
+              <Input
+                autoComplete="off"
+                placeholder="e.g. Mother's cousin"
+                {...describe("relation")}
+                {...form.register("relation")}
               />
             </FormField>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invitation and RSVP</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <FormField
-            label="Invitation status"
-            error={form.formState.errors.inviteStatus?.message}
-          >
-            <Select
-              disabled={isPending}
-              {...form.register("inviteStatus")}
-            >
-              {inviteStatusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {inviteStatusLabels[status]}
-                </option>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <ChoiceGroup legend="Side">
+              {guestSideOptions.map((option) => (
+                <Choice key={option} value={option} {...form.register("side")}>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "h-2 w-2 shrink-0 rounded-sm",
+                      option === "JAMES" ? "bg-james" : "bg-lisa",
+                    )}
+                  />
+                  {option === "JAMES" ? "James" : "Lisa"}
+                </Choice>
               ))}
-            </Select>
-          </FormField>
+            </ChoiceGroup>
 
-          <FormField
-            label="RSVP status"
-            error={form.formState.errors.rsvpStatus?.message}
-          >
-            <Select
-              disabled={isPending}
-              {...form.register("rsvpStatus")}
-            >
-              {rsvpStatusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {rsvpStatusLabels[status]}
-                </option>
+            <ChoiceGroup legend="Age group">
+              {guestTypeOptions.map((option) => (
+                <Choice key={option} value={option} {...form.register("guestType")}>
+                  {guestTypeLabels[option]}
+                </Choice>
               ))}
-            </Select>
-          </FormField>
+            </ChoiceGroup>
+          </div>
 
-          <div className="rounded-xl border border-border/80 bg-muted/25 p-4 md:col-span-2">
-            <label className="flex items-center gap-3">
+          <ChoiceGroup className="grid-flow-row grid-cols-2 sm:grid-cols-4" legend="Group" wrap>
+            {groupTypeOptions.map((option) => (
+              <Choice key={option} value={option} {...form.register("groupType")}>
+                {groupTypeLabels[option]}
+              </Choice>
+            ))}
+          </ChoiceGroup>
+        </FormSection>
+
+        <FormSection
+          description="Who shares their RSVP link, and whether they can bring someone."
+          title="Invitation"
+        >
+          <div className="space-y-3">
+            <ChoiceGroup
+              hint={
+                availableHouseholds.length === 0 && householdMode !== "EXISTING"
+                  ? `No households on ${side === "JAMES" ? "James's" : "Lisa's"} side yet. Start one with “New”.`
+                  : undefined
+              }
+              legend="RSVP link"
+            >
+              <Choice
+                checked={householdMode === "INDIVIDUAL"}
+                name="household-mode"
+                onChange={() => handleHouseholdModeChange("INDIVIDUAL")}
+                value="INDIVIDUAL"
+              >
+                <span className="sm:hidden">Own</span>
+                <span className="hidden sm:inline">Their own</span>
+              </Choice>
+              <Choice
+                checked={householdMode === "EXISTING"}
+                disabled={availableHouseholds.length === 0}
+                name="household-mode"
+                onChange={() => handleHouseholdModeChange("EXISTING")}
+                value="EXISTING"
+              >
+                <span className="sm:hidden">Join</span>
+                <span className="hidden sm:inline">Join household</span>
+              </Choice>
+              <Choice
+                checked={householdMode === "CUSTOM"}
+                name="household-mode"
+                onChange={() => handleHouseholdModeChange("CUSTOM")}
+                value="CUSTOM"
+              >
+                <span className="sm:hidden">New</span>
+                <span className="hidden sm:inline">New household</span>
+              </Choice>
+            </ChoiceGroup>
+
+            {householdMode === "EXISTING" ? (
+              <div className="animate-enter space-y-2">
+                <label className="sr-only" htmlFor="guest-existing-household">
+                  Household to join
+                </label>
+                <Select
+                  id="guest-existing-household"
+                  onChange={(event) => handleExistingHouseholdChange(event.target.value)}
+                  value={selectedHousehold ? buildHouseholdOptionKey(selectedHousehold) : ""}
+                >
+                  {availableHouseholds.map((household) => (
+                    <option
+                      key={buildHouseholdOptionKey(household)}
+                      value={buildHouseholdOptionKey(household)}
+                    >
+                      {household.householdName} · {household.linkedGuestCount}{" "}
+                      {household.linkedGuestCount === 1 ? "guest" : "guests"}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
+
+            {householdMode === "CUSTOM" ? (
+              <FormField
+                className="animate-enter"
+                error={errors.householdName?.message}
+                label="Household name"
+                name="householdName"
+              >
+                <Input
+                  autoComplete="off"
+                  placeholder="e.g. Asante family"
+                  {...describe("householdName")}
+                  {...form.register("householdName")}
+                />
+              </FormField>
+            ) : null}
+
+            {householdSummary ? (
+              <p className="text-sm text-muted-foreground" aria-live="polite">
+                {householdSummary}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-3 border-t border-border/70 pt-5">
+            <label className="flex cursor-pointer items-start gap-3">
               <input
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                disabled={isPending}
+                className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
                 type="checkbox"
                 {...form.register("plusOneAllowed")}
               />
-              <div>
-                <p className="text-sm font-medium text-primary">Plus one allowed</p>
-                <p className="text-xs text-muted-foreground">
-                  Enable this if the guest may bring an additional attendee.
-                </p>
-              </div>
+              <span>
+                <span className="block text-sm font-medium text-primary">
+                  Can bring a plus one
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Their RSVP form will ask for a guest name.
+                </span>
+              </span>
             </label>
+
+            {plusOneAllowed ? (
+              <FormField
+                className="animate-enter sm:max-w-sm sm:pl-7"
+                error={errors.plusOneName?.message}
+                hint="Leave blank until they tell you."
+                label="Plus one's name"
+                name="plusOneName"
+                optional
+              >
+                <Input
+                  autoComplete="off"
+                  placeholder="e.g. Kwesi Owusu"
+                  {...describe("plusOneName", true)}
+                  {...form.register("plusOneName")}
+                />
+              </FormField>
+            ) : null}
+          </div>
+
+          <div className="border-t border-border/70 pt-5">
+            {showStatusFields ? (
+              <div className={cn("grid gap-5 sm:grid-cols-2", isCreateMode && "animate-enter")}>
+                <FormField
+                  error={errors.inviteStatus?.message}
+                  label="Invitation"
+                  name="inviteStatus"
+                >
+                  <Select {...describe("inviteStatus")} {...form.register("inviteStatus")}>
+                    {inviteStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {inviteStatusLabels[status]}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+
+                <FormField error={errors.rsvpStatus?.message} label="RSVP" name="rsvpStatus">
+                  <Select {...describe("rsvpStatus")} {...form.register("rsvpStatus")}>
+                    {rsvpStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {rsvpStatusLabels[status]}
+                      </option>
+                    ))}
+                  </Select>
+                </FormField>
+              </div>
+            ) : (
+              <button
+                className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => setShowStatusFields(true)}
+                type="button"
+              >
+                Already sent the invite or had a reply?
+              </button>
+            )}
+          </div>
+        </FormSection>
+
+        <FormSection
+          description="How to reach them, and anything to remember on the day."
+          title="Contact and notes"
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FormField
+              error={errors.phone?.message}
+              hint="Guests can enter this number to find their RSVP."
+              label="Phone"
+              name="phone"
+              optional
+            >
+              <Input
+                autoComplete="off"
+                inputMode="tel"
+                placeholder="e.g. 07123 456789"
+                type="tel"
+                {...describe("phone", true)}
+                {...form.register("phone")}
+              />
+            </FormField>
+
+            <FormField error={errors.email?.message} label="Email" name="email" optional>
+              <Input
+                autoComplete="off"
+                inputMode="email"
+                placeholder="e.g. abena@example.com"
+                type="email"
+                {...describe("email")}
+                {...form.register("email")}
+              />
+            </FormField>
           </div>
 
           <FormField
-            label="Plus one name"
-            hint="Optional. Leave blank until the guest confirms who they are bringing."
-            error={form.formState.errors.plusOneName?.message}
+            error={errors.dietaryRequirements?.message}
+            hint="Separate items with commas."
+            label="Dietary needs"
+            name="dietaryRequirements"
+            optional
           >
             <Input
-              disabled={!plusOneAllowed || isPending}
-              placeholder="e.g. Kwesi Owusu"
-              {...form.register("plusOneName")}
-            />
-          </FormField>
-
-          <FormField
-            label="Dietary requirements"
-            hint="Separate multiple items with commas or new lines."
-            error={form.formState.errors.dietaryRequirements?.message}
-          >
-            <Textarea
-              disabled={isPending}
-              placeholder="Vegetarian, No shellfish"
+              autoComplete="off"
+              placeholder="e.g. Vegetarian, no shellfish"
+              {...describe("dietaryRequirements", true)}
               {...form.register("dietaryRequirements")}
             />
           </FormField>
-        </CardContent>
-      </Card>
 
-      {mode === "edit" && guestId ? (
+          <FormField error={errors.notes?.message} label="Notes" name="notes" optional>
+            <Textarea
+              className="min-h-[88px]"
+              placeholder="Seating, travel, anything worth remembering"
+              rows={3}
+              {...describe("notes")}
+              {...form.register("notes")}
+            />
+          </FormField>
+        </FormSection>
+      </fieldset>
+
+      {!isCreateMode && guestId ? (
         <Card className="border-rose-200">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div className="space-y-1">
@@ -642,23 +734,53 @@ export function GuestForm({
         </Card>
       ) : null}
 
-      <div className="sticky bottom-0 z-10 -mx-6 flex gap-3 border-t border-border/80 bg-background/95 px-6 py-3 backdrop-blur sm:static sm:mx-0 sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-        <Button asChild className="flex-1 sm:flex-none" variant="outline">
+      <div className="sticky bottom-0 z-10 -mx-6 flex gap-2 border-t border-border/80 bg-background/95 px-6 py-3 backdrop-blur sm:static sm:mx-0 sm:justify-end sm:gap-3 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <Button asChild className="hidden sm:inline-flex" variant="ghost">
           <Link href="/admin/guests">Cancel</Link>
         </Button>
-        <Button className="flex-1 sm:flex-none" disabled={isPending} type="submit">
-          {mode === "create" ? (
-            <>
+        {isCreateMode ? (
+          <>
+            <Button
+              className="flex-1 sm:flex-none"
+              disabled={isPending}
+              onClick={() => {
+                submitIntentRef.current = "another";
+              }}
+              type="submit"
+              variant="outline"
+            >
+              {isPending && submitIntentRef.current === "another" ? (
+                "Adding..."
+              ) : (
+                <>
+                  <span className="sm:hidden">Add &amp; next</span>
+                  <span className="hidden sm:inline">Add and start another</span>
+                </>
+              )}
+            </Button>
+            <Button
+              className="flex-1 sm:flex-none"
+              disabled={isPending}
+              onClick={() => {
+                submitIntentRef.current = "done";
+              }}
+              type="submit"
+            >
               <UserPlus className="mr-2 h-4 w-4" />
-              {isPending ? "Creating guest..." : "Create guest"}
-            </>
-          ) : (
-            <>
+              {isPending && submitIntentRef.current === "done" ? "Adding..." : "Add guest"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button asChild className="flex-1 sm:hidden" variant="outline">
+              <Link href="/admin/guests">Cancel</Link>
+            </Button>
+            <Button className="flex-1 sm:flex-none" disabled={isPending} type="submit">
               <Save className="mr-2 h-4 w-4" />
-              {isPending ? "Saving changes..." : "Save changes"}
-            </>
-          )}
-        </Button>
+              {isPending ? "Saving..." : "Save changes"}
+            </Button>
+          </>
+        )}
       </div>
     </form>
   );

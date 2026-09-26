@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { Banknote, PiggyBank, Wallet } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -214,7 +215,11 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
         </Card>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex gap-1 rounded-lg bg-muted/70 p-1" role="tablist">
+        <div
+          className="segmented grid w-64 grid-cols-2 gap-1 rounded-[var(--segment-radius)] bg-muted/70 p-1"
+          role="tablist"
+          style={{ "--segments": 2 } as CSSProperties}
+        >
           {(
             [
               { key: "vendors", label: "By vendor", href: "/admin/vendors" },
@@ -225,8 +230,8 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
               aria-selected={view === tab.key}
               className={
                 view === tab.key
-                  ? "rounded-md bg-white px-3.5 py-1.5 text-sm font-medium text-primary shadow-sm"
-                  : "rounded-md px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+                  ? "rounded-[calc(var(--segment-radius)_-_4px)] px-3.5 py-1.5 text-center text-sm font-medium text-primary transition-colors"
+                  : "rounded-[calc(var(--segment-radius)_-_4px)] px-3.5 py-1.5 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
               }
               role="tab"
               href={tab.href}
@@ -235,6 +240,7 @@ export async function VendorsPage({ view }: { view: VendorsView }) {
               {tab.label}
             </Link>
           ))}
+          <span aria-hidden className="segmented-thumb" />
         </div>
         <AddVendorButton />
         </div>

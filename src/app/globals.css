@@ -33,6 +33,14 @@
     --card-radius: 1.75rem;
     --card-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
     --control-radius: 1rem;
+    /* Segmented controls (tabs, radio choices) are near-pill; the inner
+       thumb is always this minus the 4px track padding. */
+    --segment-radius: 1.375rem;
+
+    /* Motion tokens. Strong curves: ease-out for things entering or
+       responding, ease-in-out for things moving across the screen. */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   }
 
   * {
@@ -59,6 +67,108 @@
   }
 }
 
+@layer components {
+  /* Segmented control with a sliding thumb. The active item is found with
+     :has(), so radios, links and tabs all drive it without any JS (:has()
+     can't nest, hence one selector per kind of "active"). Items are
+     equal width; the thumb is the last child and sits behind them. */
+  .segmented {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .segmented-thumb {
+    position: absolute;
+    z-index: -1;
+    top: 4px;
+    bottom: 4px;
+    left: 4px;
+    width: calc((100% - 8px - (var(--segments) - 1) * 4px) / var(--segments));
+    border-radius: calc(var(--segment-radius) - 4px);
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(60, 45, 30, 0.08);
+    transition:
+      transform 250ms var(--ease-in-out),
+      opacity 150ms var(--ease-out);
+  }
+
+  .segmented:has(
+      > :nth-child(2) input:checked,
+      > :nth-child(2)[aria-current="page"],
+      > :nth-child(2)[aria-selected="true"]
+    )
+    > .segmented-thumb {
+    transform: translateX(calc(100% + 4px));
+  }
+
+  .segmented:has(
+      > :nth-child(3) input:checked,
+      > :nth-child(3)[aria-current="page"],
+      > :nth-child(3)[aria-selected="true"]
+    )
+    > .segmented-thumb {
+    transform: translateX(calc(200% + 8px));
+  }
+
+  .segmented:has(
+      > :nth-child(4) input:checked,
+      > :nth-child(4)[aria-current="page"],
+      > :nth-child(4)[aria-selected="true"]
+    )
+    > .segmented-thumb {
+    transform: translateX(calc(300% + 12px));
+  }
+
+  .segmented:not(:has(input:checked, [aria-current="page"], [aria-selected="true"])) > .segmented-thumb {
+    opacity: 0;
+  }
+
+  /* A choice group that wraps onto two rows on phones can't slide one
+     thumb across rows, so there each checked item paints its own. */
+  @media (max-width: 639px) {
+    .segmented[data-wrap] > .segmented-thumb {
+      display: none;
+    }
+
+    .segmented[data-wrap] input:checked + span {
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(60, 45, 30, 0.08);
+    }
+  }
+
+  /* Content that appears: a short rise and fade. */
+  .animate-enter {
+    animation: enter 220ms var(--ease-out) both;
+  }
+
+  /* Page sections arrive in a quick cascade rather than all at once. */
+  .page-enter > main > * {
+    animation: enter 260ms var(--ease-out) both;
+  }
+
+  .page-enter > main > :nth-child(2) { animation-delay: 40ms; }
+  .page-enter > main > :nth-child(3) { animation-delay: 80ms; }
+  .page-enter > main > :nth-child(4) { animation-delay: 120ms; }
+  .page-enter > main > :nth-child(n + 5) { animation-delay: 160ms; }
+
+  .fade-enter {
+    animation: fade-in 200ms var(--ease-out) both;
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (hover: none) {
   html {
     -webkit-tap-highlight-color: transparent;
@@ -68,5 +178,20 @@
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  /* Fewer and gentler, not none: keep fades, drop movement. */
+  .animate-enter,
+  .page-enter > main > * {
+    animation-name: fade-in;
+    animation-delay: 0ms;
+  }
+
+  .segmented-thumb {
+    transition: opacity 150ms var(--ease-out);
+  }
+
+  .active\:scale-\[0\.97\]:active {
+    transform: none;
   }
 }

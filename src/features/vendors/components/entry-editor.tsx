@@ -253,7 +253,7 @@ export function EntryTimeline({
       </div>
 
       {selected ? (
-        <div className="space-y-2.5 rounded-xl border border-border/80 bg-muted/25 p-3">
+        <div className="animate-enter space-y-2.5 rounded-xl border border-border/80 bg-muted/25 p-3">
           <div className="flex items-center gap-2">
             <SourceChip source={selected.source} />
             <span className="text-sm text-muted-foreground">
@@ -388,7 +388,7 @@ export function AddEntryForm({ vendorId }: { vendorId: string }) {
   }
 
   return (
-    <div className="space-y-2.5 rounded-xl border border-border/80 bg-muted/25 p-3">
+    <div className="animate-enter space-y-2.5 rounded-xl border border-border/80 bg-muted/25 p-3">
       <div className="grid gap-2.5 sm:grid-cols-3">
         <Input
           aria-label="Amount"

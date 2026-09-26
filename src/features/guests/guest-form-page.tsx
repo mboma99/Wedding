@@ -40,7 +40,7 @@ export function GuestFormPage({
         back={{ href: "/admin/guests", label: "Guests" }}
         meta={
           isCreateMode
-            ? "Add their details now; contact info and RSVP can be filled in later."
+            ? "Only name and relation are required. Everything else can wait."
             : [initialValues.relation, initialValues.householdName]
                 .filter(Boolean)
                 .join(" · ") || undefined

@@ -75,7 +75,7 @@ export function DeleteGuestButton({
 
   if (isArmed || isPending) {
     return (
-      <span className="inline-flex items-center gap-1">
+      <span className="animate-enter inline-flex items-center gap-1">
         <Button
           autoFocus
           className={cn(!iconOnly && className)}

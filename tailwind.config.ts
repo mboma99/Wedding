@@ -3,6 +3,11 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 const config: Config = {
   darkMode: ["class"],
+  // Hover styles only apply on devices that can really hover, so taps on
+  // phones don't leave buttons stuck in their hover state.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   content: [
     "./src/app/**/*.{ts,tsx}",
     "./src/components/**/*.{ts,tsx}",
@@ -58,6 +63,14 @@ const config: Config = {
       backgroundImage: {
         "wedding-shell":
           "radial-gradient(circle at top left, rgba(90, 125, 255, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(232, 105, 155, 0.18), transparent 26%), linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(249, 246, 241, 0.95))",
+      },
+      transitionTimingFunction: {
+        DEFAULT: "var(--ease-out)",
+        out: "var(--ease-out)",
+        "in-out": "var(--ease-in-out)",
+      },
+      transitionDuration: {
+        DEFAULT: "200ms",
       },
       boxShadow: {
         soft: "0 18px 50px rgba(15, 23, 42, 0.08)",
