@@ -4,7 +4,7 @@ import {
   GuestType,
   InviteStatus,
   RsvpStatus,
-} from "@prisma/client";
+} from "@/domain/enums";
 import { z } from "zod";
 
 import type { GuestFormRecord } from "@/features/guests/types";

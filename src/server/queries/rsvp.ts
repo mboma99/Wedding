@@ -5,86 +5,54 @@ import {
   normalizeInviteTokenCandidate,
   RSVP_CODE_LENGTH,
 } from "@/lib/rsvp";
-import { prisma } from "@/server/db/prisma";
+import { guestsCollection } from "@/server/db/firestore";
+import { toGuestRecords, type GuestRecord } from "@/server/db/guest-doc";
+
+const INVITE_TOKEN_FIELD = "invitation.inviteToken";
+
+async function findGuestByInviteToken(token: string): Promise<GuestRecord | null> {
+  if (!token) {
+    return null;
+  }
+
+  const snapshot = await guestsCollection()
+    .where(INVITE_TOKEN_FIELD, "==", token)
+    .limit(1)
+    .get();
+
+  return toGuestRecords(snapshot.docs)[0] ?? null;
+}
+
+async function findHouseholdGuests(guest: GuestRecord): Promise<GuestRecord[]> {
+  const householdName = guest.householdName?.trim();
+
+  if (!householdName) {
+    return [guest];
+  }
+
+  // Equality on householdName alone is served by the automatic single-field
+  // index; side is narrowed here so no composite index has to be deployed.
+  const snapshot = await guestsCollection()
+    .where("householdName", "==", householdName)
+    .get();
+
+  return toGuestRecords(snapshot.docs)
+    .filter((candidate) => candidate.side === guest.side)
+    .sort((a, b) =>
+      a.fullName.localeCompare(b.fullName, "en", { sensitivity: "base" }),
+    );
+}
 
 export async function getPublicInvitationByToken(
   token: string,
 ): Promise<PublicInvitationRecord | null> {
-  const invitation = await prisma.invitation.findUnique({
-    where: {
-      inviteToken: token,
-    },
-    select: {
-      inviteToken: true,
-      guest: {
-        select: {
-          id: true,
-          fullName: true,
-          relation: true,
-          side: true,
-          guestType: true,
-          householdName: true,
-        },
-      },
-    },
-  });
+  const tokenGuest = await findGuestByInviteToken(token);
 
-  if (!invitation) {
+  if (!tokenGuest?.invitation) {
     return null;
   }
 
-  const householdGuests =
-    invitation.guest.householdName?.trim()
-      ? await prisma.guest.findMany({
-          where: {
-            householdName: invitation.guest.householdName,
-            side: invitation.guest.side,
-            invitation: {
-              isNot: null,
-            },
-          },
-          orderBy: [{ fullName: "asc" }],
-          select: {
-            id: true,
-            fullName: true,
-            relation: true,
-            side: true,
-            guestType: true,
-            householdName: true,
-            invitation: {
-              select: {
-                inviteToken: true,
-                rsvpStatus: true,
-                plusOneAllowed: true,
-                plusOneName: true,
-                dietaryRequirements: true,
-              },
-            },
-          },
-        })
-      : await prisma.guest.findMany({
-          where: {
-            id: invitation.guest.id,
-          },
-          select: {
-            id: true,
-            fullName: true,
-            relation: true,
-            side: true,
-            guestType: true,
-            householdName: true,
-            invitation: {
-              select: {
-                inviteToken: true,
-                rsvpStatus: true,
-                plusOneAllowed: true,
-                plusOneName: true,
-                dietaryRequirements: true,
-              },
-            },
-          },
-        });
-
+  const householdGuests = await findHouseholdGuests(tokenGuest);
   const invitedGuests = householdGuests.filter((guest) => guest.invitation);
 
   if (!invitedGuests.length) {
@@ -92,18 +60,18 @@ export async function getPublicInvitationByToken(
   }
 
   const primaryGuest =
-    invitedGuests.find((guest) => guest.id === invitation.guest.id) ?? invitedGuests[0];
+    invitedGuests.find((guest) => guest.id === tokenGuest.id) ?? invitedGuests[0];
   const accessToken =
     invitedGuests.length > 1
-      ? invitedGuests[0]?.invitation?.inviteToken ?? invitation.inviteToken
-      : invitation.inviteToken;
+      ? invitedGuests[0]?.invitation?.inviteToken ?? tokenGuest.invitation.inviteToken
+      : tokenGuest.invitation.inviteToken;
 
   return {
-    token: invitation.inviteToken,
+    token: tokenGuest.invitation.inviteToken,
     accessToken,
     inviteCode: buildInviteCodeFromToken(accessToken),
     inviteKind: invitedGuests.length > 1 ? "HOUSEHOLD" : "INDIVIDUAL",
-    householdName: invitation.guest.householdName,
+    householdName: tokenGuest.householdName,
     primaryGuest: {
       id: primaryGuest.id,
       fullName: primaryGuest.fullName,
@@ -131,20 +99,15 @@ export async function resolvePublicInvitationAccessToken(
   );
 
   for (const candidate of exactTokenCandidates) {
-    const invitation = await prisma.invitation.findUnique({
-      where: {
-        inviteToken: candidate,
-      },
-      select: {
-        inviteToken: true,
-      },
-    });
+    const guest = await findGuestByInviteToken(candidate);
 
-    if (!invitation) {
+    if (!guest?.invitation) {
       continue;
     }
 
-    const publicInvitation = await getPublicInvitationByToken(invitation.inviteToken);
+    const publicInvitation = await getPublicInvitationByToken(
+      guest.invitation.inviteToken,
+    );
 
     if (publicInvitation) {
       return publicInvitation.accessToken;
@@ -157,27 +120,25 @@ export async function resolvePublicInvitationAccessToken(
     return null;
   }
 
-  const matchingInvitations = await prisma.invitation.findMany({
-    where: {
-      inviteToken: {
-        startsWith: inviteCode.toLowerCase(),
-      },
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-    select: {
-      inviteToken: true,
-    },
-    take: 2,
-  });
+  // Prefix match: tokens sort as strings, so the range covers every token that
+  // starts with the code. Two hits means the code is ambiguous, so it fails.
+  const prefix = inviteCode.toLowerCase();
+  const matches = await guestsCollection()
+    .where(INVITE_TOKEN_FIELD, ">=", prefix)
+    .where(INVITE_TOKEN_FIELD, "<", `${prefix}`)
+    .limit(2)
+    .get();
 
-  if (matchingInvitations.length !== 1) {
+  const matchingGuests = toGuestRecords(matches.docs).filter(
+    (guest) => guest.invitation,
+  );
+
+  if (matchingGuests.length !== 1) {
     return null;
   }
 
   const publicInvitation = await getPublicInvitationByToken(
-    matchingInvitations[0].inviteToken,
+    matchingGuests[0].invitation!.inviteToken,
   );
 
   return publicInvitation?.accessToken ?? null;

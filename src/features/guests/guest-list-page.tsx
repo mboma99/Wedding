@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GuestSide } from "@prisma/client";
+import { GuestSide } from "@/domain/enums";
 import { UserPlus, Users } from "lucide-react";
 
 import { AppShellNav } from "@/components/shared/app-shell-nav";
@@ -10,7 +10,7 @@ import { GuestListFilters } from "@/features/guests/components/guest-list-filter
 import { GuestListPagination } from "@/features/guests/components/guest-list-pagination";
 import { GuestTable } from "@/features/guests/components/guest-table";
 import { type GuestListSearchParams } from "@/features/guests/types";
-import { getGuestList } from "@/server/queries/guests";
+import { getGuestList, getHouseholdOptions } from "@/server/queries/guests";
 
 function GuestListUnavailableState() {
   return (
@@ -47,9 +47,11 @@ function SummaryCard({
   } as const;
 
   return (
-    <div className={`rounded-[1.5rem] border p-5 ${tones[accent]}`}>
+    <div className={`rounded-[1.5rem] border p-4 sm:p-5 ${tones[accent]}`}>
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-primary">{value}</p>
+      <p className="mt-1 text-2xl font-semibold text-primary sm:mt-3 sm:text-3xl">
+        {value}
+      </p>
     </div>
   );
 }
@@ -60,16 +62,19 @@ export async function GuestListPage({
   searchParams: GuestListSearchParams;
 }) {
   try {
-    const guestList = await getGuestList(searchParams);
+    const [guestList, householdOptions] = await Promise.all([
+      getGuestList(searchParams),
+      getHouseholdOptions(),
+    ]);
 
     return (
       <main className="container space-y-6 py-6 sm:space-y-8 sm:py-10">
         <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <Card className="overflow-hidden border-white/80 bg-white/85">
-            <CardContent className="space-y-6 p-5 sm:space-y-8 sm:p-8">
+            <CardContent className="space-y-4 p-4 sm:space-y-8 sm:p-8">
               <AppShellNav currentPath="/admin/guests" />
               <div className="space-y-3">
-                <h1 className="font-serif text-3xl leading-tight text-primary sm:text-6xl sm:leading-none">
+                <h1 className="font-serif text-2xl leading-tight text-primary sm:text-6xl sm:leading-none">
                   Guest list
                 </h1>
                 </div>
@@ -83,7 +88,7 @@ export async function GuestListPage({
           </Card>
 
           <Card className="overflow-hidden border-white/80 bg-white/85">
-            <CardContent className="space-y-5 p-5 sm:p-8">
+            <CardContent className="space-y-4 p-4 sm:p-8">
               <div className="flex items-start gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/10 bg-primary/10 text-primary">
                   <Users className="h-5 w-5" />
@@ -100,7 +105,7 @@ export async function GuestListPage({
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <SummaryCard
                   label="James side"
                   value={guestList.sideTotals[GuestSide.JAMES]}
@@ -118,7 +123,7 @@ export async function GuestListPage({
 
         <GuestListFilters filters={searchParams} />
 
-        <GuestTable guests={guestList.guests} />
+        <GuestTable guests={guestList.guests} householdOptions={householdOptions} />
 
         <GuestListPagination
           filters={searchParams}

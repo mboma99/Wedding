@@ -4,7 +4,7 @@ import {
   GuestType,
   InviteStatus,
   RsvpStatus,
-} from "@prisma/client";
+} from "@/domain/enums";
 import { z } from "zod";
 
 export const guestSideOptions = [GuestSide.JAMES, GuestSide.LISA] as const;
@@ -155,19 +155,29 @@ export type HouseholdOption = {
   linkedGuestCount: number;
 };
 
+// Every field catches its own bad input: one unreadable value in the query
+// string must not discard the filters that were valid.
 const guestListSearchParamsSchema = z.object({
-  q: z.string().trim().max(100).optional().default(""),
-  side: z.nativeEnum(GuestSide).optional(),
-  groupType: z.nativeEnum(GroupType).optional(),
-  inviteStatus: z.nativeEnum(InviteStatus).optional(),
-  rsvpStatus: z.nativeEnum(RsvpStatus).optional(),
-  sortBy: z.enum(guestSortFieldOptions).optional().default("fullName"),
-  sortDirection: z.enum(sortDirectionOptions).optional().default("asc"),
-  page: z.coerce.number().int().min(1).optional().default(1),
+  q: z.string().trim().max(100).optional().default("").catch(""),
+  side: z.nativeEnum(GuestSide).optional().catch(undefined),
+  groupType: z.nativeEnum(GroupType).optional().catch(undefined),
+  inviteStatus: z.nativeEnum(InviteStatus).optional().catch(undefined),
+  rsvpStatus: z.nativeEnum(RsvpStatus).optional().catch(undefined),
+  sortBy: z.enum(guestSortFieldOptions).optional().default("fullName").catch("fullName"),
+  sortDirection: z
+    .enum(sortDirectionOptions)
+    .optional()
+    .default("asc")
+    .catch("asc"),
+  page: z.coerce.number().int().min(1).optional().default(1).catch(1),
 });
 
 function getSingleValue(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
+  const single = Array.isArray(value) ? value[0] : value;
+
+  // The filter form submits every field, so a dropdown left on "All ..."
+  // arrives as an empty string. That means absent, not invalid.
+  return single === "" ? undefined : single;
 }
 
 export function parseGuestListSearchParams(

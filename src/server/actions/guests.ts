@@ -1,6 +1,8 @@
 "use server";
 
-import { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+
+import { FieldValue, type Transaction } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -9,7 +11,9 @@ import {
   parseDietaryRequirements,
   type GuestFormValues,
 } from "@/features/guests/form-schema";
-import { prisma } from "@/server/db/prisma";
+import { getDb, guestsCollection } from "@/server/db/firestore";
+import { toGuestRecord } from "@/server/db/guest-doc";
+import { setHouseholdForGuests } from "@/server/households";
 import { requireAdminSession } from "@/server/auth/admin";
 
 type GuestFormActionResult =
@@ -31,6 +35,15 @@ type DeleteGuestActionResult =
       message: string;
     };
 
+/** Firestore has no unique constraints, so these stand in for P2002/P2025. */
+class DuplicateEmailError extends Error {}
+class GuestNotFoundError extends Error {}
+
+/**
+ * Cleared fields must be `null`, never `undefined`: writes use `{ merge: true }`
+ * and the client ignores undefined properties, so an undefined field would keep
+ * its old value instead of being cleared.
+ */
 function buildGuestPayload(values: GuestFormValues) {
   const normalized = normalizeGuestFormValues(values);
   const dietaryRequirements = parseDietaryRequirements(
@@ -85,6 +98,30 @@ function buildDeleteFailure(
   };
 }
 
+/**
+ * Email was a unique column. The check runs inside the transaction that writes
+ * the guest so two concurrent submissions cannot both claim the same address.
+ */
+async function assertEmailIsFree(
+  transaction: Transaction,
+  email: string | null,
+  excludeGuestId?: string,
+) {
+  if (!email) {
+    return;
+  }
+
+  const existing = await transaction.get(
+    guestsCollection().where("email", "==", email).limit(2),
+  );
+
+  const clash = existing.docs.some((doc) => doc.id !== excludeGuestId);
+
+  if (clash) {
+    throw new DuplicateEmailError();
+  }
+}
+
 export async function createGuestAction(
   values: GuestFormValues,
 ): Promise<GuestFormActionResult> {
@@ -98,37 +135,30 @@ export async function createGuestAction(
   const payload = buildGuestPayload(parsed.data);
 
   try {
-    const guest = await prisma.guest.create({
-      data: {
-        fullName: payload.fullName,
-        side: payload.side,
-        groupType: payload.groupType,
-        relation: payload.relation,
-        guestType: payload.guestType,
-        householdName: payload.householdName,
-        phone: payload.phone,
-        email: payload.email,
-        notes: payload.notes,
+    const guestRef = guestsCollection().doc();
+
+    await getDb().runTransaction(async (transaction) => {
+      await assertEmailIsFree(transaction, payload.email);
+
+      transaction.set(guestRef, {
+        ...payload,
         invitation: {
-          create: payload.invitation,
+          ...payload.invitation,
+          inviteToken: randomUUID(),
         },
-      },
-      select: {
-        id: true,
-      },
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
     });
 
-    revalidateGuestPaths(guest.id);
+    revalidateGuestPaths(guestRef.id);
 
     return {
       success: true,
-      guestId: guest.id,
+      guestId: guestRef.id,
     };
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (error instanceof DuplicateEmailError) {
       return buildValidationError(
         "A guest with this email address already exists.",
       );
@@ -152,52 +182,47 @@ export async function updateGuestAction(
   const payload = buildGuestPayload(parsed.data);
 
   try {
-    const guest = await prisma.guest.update({
-      where: {
-        id: guestId,
-      },
-      data: {
-        fullName: payload.fullName,
-        side: payload.side,
-        groupType: payload.groupType,
-        relation: payload.relation,
-        guestType: payload.guestType,
-        householdName: payload.householdName,
-        phone: payload.phone,
-        email: payload.email,
-        notes: payload.notes,
-        invitation: {
-          upsert: {
-            create: payload.invitation,
-            update: payload.invitation,
+    const guestRef = guestsCollection().doc(guestId);
+
+    await getDb().runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(guestRef);
+      const existing = toGuestRecord(snapshot);
+
+      if (!existing) {
+        throw new GuestNotFoundError();
+      }
+
+      await assertEmailIsFree(transaction, payload.email, guestId);
+
+      transaction.set(
+        guestRef,
+        {
+          ...payload,
+          invitation: {
+            ...payload.invitation,
+            // An existing invitation keeps its token so shared RSVP links live on.
+            inviteToken: existing.invitation?.inviteToken ?? randomUUID(),
           },
+          updatedAt: FieldValue.serverTimestamp(),
         },
-      },
-      select: {
-        id: true,
-      },
+        { merge: true },
+      );
     });
 
-    revalidateGuestPaths(guest.id);
+    revalidateGuestPaths(guestId);
 
     return {
       success: true,
-      guestId: guest.id,
+      guestId,
     };
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (error instanceof DuplicateEmailError) {
       return buildValidationError(
         "Another guest already uses this email address.",
       );
     }
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (error instanceof GuestNotFoundError) {
       return buildValidationError("This guest record no longer exists.");
     }
 
@@ -209,52 +234,31 @@ export async function deleteGuestAction(
   guestId: string,
 ): Promise<DeleteGuestActionResult> {
   await requireAdminSession();
+
   try {
-    const guest = await prisma.guest.findUnique({
-      where: {
-        id: guestId,
-      },
-      select: {
-        id: true,
-        householdName: true,
-        side: true,
-        invitation: {
-          select: {
-            inviteToken: true,
-          },
-        },
-      },
-    });
+    const snapshot = await guestsCollection().doc(guestId).get();
+    const guest = toGuestRecord(snapshot);
 
     if (!guest) {
       return buildDeleteFailure("This guest record no longer exists.");
     }
 
     const relatedHouseholdGuests = guest.householdName
-      ? await prisma.guest.findMany({
-          where: {
-            id: {
-              not: guest.id,
-            },
-            householdName: guest.householdName,
-            side: guest.side,
-          },
-          select: {
-            id: true,
-            invitation: {
-              select: {
-                inviteToken: true,
-              },
-            },
-          },
-        })
+      ? (
+          await guestsCollection()
+            .where("householdName", "==", guest.householdName)
+            .get()
+        ).docs
+          .map((doc) => toGuestRecord(doc))
+          .filter(
+            (candidate) =>
+              candidate !== null &&
+              candidate.id !== guest.id &&
+              candidate.side === guest.side,
+          )
       : [];
 
-    await prisma.guest.delete({
-      where: {
-        id: guest.id,
-      },
-    });
+    await guestsCollection().doc(guest.id).delete();
 
     revalidateGuestPaths(guest.id);
 
@@ -263,6 +267,10 @@ export async function deleteGuestAction(
     }
 
     for (const householdGuest of relatedHouseholdGuests) {
+      if (!householdGuest) {
+        continue;
+      }
+
       revalidatePath(`/admin/guests/${householdGuest.id}/edit`);
 
       if (householdGuest.invitation?.inviteToken) {
@@ -273,14 +281,62 @@ export async function deleteGuestAction(
     return {
       success: true,
     };
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
-      return buildDeleteFailure("This guest record no longer exists.");
+  } catch {
+    return buildDeleteFailure();
+  }
+}
+
+
+export type AssignHouseholdActionResult =
+  | {
+      success: true;
+      householdName: string | null;
+      guestCount: number;
+    }
+  | {
+      success: false;
+      message: string;
+    };
+
+/**
+ * Groups the selected guests into a household, or clears theirs when
+ * `householdName` is null. Passing a name that already exists on their side
+ * merges them into that household.
+ */
+export async function assignHouseholdAction(
+  guestIds: string[],
+  householdName: string | null,
+): Promise<AssignHouseholdActionResult> {
+  await requireAdminSession();
+
+  try {
+    const result = await setHouseholdForGuests(guestIds, householdName);
+
+    if (!result.success) {
+      return result;
     }
 
-    return buildDeleteFailure();
+    revalidatePath("/admin");
+    revalidatePath("/admin/guests");
+
+    for (const guestId of result.guestIds) {
+      revalidatePath(`/admin/guests/${guestId}/edit`);
+    }
+
+    // Grouping changes which guests a household RSVP page covers.
+    for (const inviteToken of result.inviteTokens) {
+      revalidatePath(`/rsvp/${inviteToken}`);
+    }
+
+    return {
+      success: true,
+      householdName: result.householdName,
+      guestCount: result.guestCount,
+    };
+  } catch {
+    return {
+      success: false,
+      message: "Household update failed. Please try again.",
+    };
   }
 }

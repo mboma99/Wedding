@@ -1,7 +1,11 @@
 import {
+  enumRank,
+  groupTypeOrder,
+  guestSideOrder,
+  inviteStatusOrder,
+  rsvpStatusOrder,
   GuestSide,
-  Prisma,
-} from "@prisma/client";
+} from "@/domain/enums";
 
 import type {
   GuestFormRecord,
@@ -11,9 +15,11 @@ import type {
   GuestListSearchParams,
   GuestSortField,
   HouseholdOption,
+  SortDirection,
 } from "@/features/guests/types";
 import { buildInviteCodeFromToken } from "@/lib/rsvp";
-import { prisma } from "@/server/db/prisma";
+import { guestsCollection } from "@/server/db/firestore";
+import { toGuestRecord, toGuestRecords, type GuestRecord } from "@/server/db/guest-doc";
 
 const PAGE_SIZE = 8;
 
@@ -26,75 +32,154 @@ type HouseholdInviteMaps = {
   householdTokenMap: Map<string, string>;
 };
 
-function buildGuestWhereClause(
-  filters: GuestListSearchParams,
-): Prisma.GuestWhereInput {
-  const search = filters.q.trim();
+/**
+ * Firestore cannot do case-insensitive substring search, cross-field OR, or
+ * offset pagination, so the guest list is filtered, sorted and paged in memory.
+ * A guest list is a few hundred documents at most, well inside one read.
+ */
+async function getAllGuests(): Promise<GuestRecord[]> {
+  const snapshot = await guestsCollection().get();
 
-  return {
-    ...(search
-      ? {
-          OR: [
-            { fullName: { contains: search, mode: "insensitive" } },
-            { householdName: { contains: search, mode: "insensitive" } },
-            { relation: { contains: search, mode: "insensitive" } },
-            { phone: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : {}),
-    ...(filters.side ? { side: filters.side } : {}),
-    ...(filters.groupType ? { groupType: filters.groupType } : {}),
-    ...(filters.inviteStatus || filters.rsvpStatus
-      ? {
-          invitation: {
-            is: {
-              ...(filters.inviteStatus
-                ? { inviteStatus: filters.inviteStatus }
-                : {}),
-              ...(filters.rsvpStatus ? { rsvpStatus: filters.rsvpStatus } : {}),
-            },
-          },
-        }
-      : {}),
-  };
+  return toGuestRecords(snapshot.docs);
 }
 
-function buildGuestOrderBy(
+function matchesSearch(guest: GuestRecord, search: string) {
+  if (!search) {
+    return true;
+  }
+
+  const needle = search.toLowerCase();
+
+  return [
+    guest.fullName,
+    guest.householdName,
+    guest.relation,
+    guest.phone,
+    guest.email,
+  ].some((field) => (field ?? "").toLowerCase().includes(needle));
+}
+
+function matchesFilters(guest: GuestRecord, filters: GuestListSearchParams) {
+  if (!matchesSearch(guest, filters.q.trim())) {
+    return false;
+  }
+
+  if (filters.side && guest.side !== filters.side) {
+    return false;
+  }
+
+  if (filters.groupType && guest.groupType !== filters.groupType) {
+    return false;
+  }
+
+  // An invitation filter implied `invitation is not null` in the relation query.
+  if (filters.inviteStatus || filters.rsvpStatus) {
+    if (!guest.invitation) {
+      return false;
+    }
+
+    if (
+      filters.inviteStatus &&
+      guest.invitation.inviteStatus !== filters.inviteStatus
+    ) {
+      return false;
+    }
+
+    if (filters.rsvpStatus && guest.invitation.rsvpStatus !== filters.rsvpStatus) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function compareText(a: string, b: string) {
+  return a.localeCompare(b, "en", { sensitivity: "base" });
+}
+
+/** Postgres orders ASC with nulls last and DESC with nulls first. */
+function compareNullable<T>(
+  a: T | null,
+  b: T | null,
+  direction: SortDirection,
+  compare: (left: T, right: T) => number,
+) {
+  if (a === null && b === null) {
+    return 0;
+  }
+
+  if (a === null) {
+    return direction === "asc" ? 1 : -1;
+  }
+
+  if (b === null) {
+    return direction === "asc" ? -1 : 1;
+  }
+
+  const result = compare(a, b);
+
+  return direction === "asc" ? result : -result;
+}
+
+function buildGuestComparator(
   sortBy: GuestSortField,
-  sortDirection: GuestListSearchParams["sortDirection"],
-): Prisma.GuestOrderByWithRelationInput[] {
-  const direction = sortDirection;
+  direction: SortDirection,
+): (a: GuestRecord, b: GuestRecord) => number {
+  const byFullNameAsc = (a: GuestRecord, b: GuestRecord) =>
+    compareText(a.fullName, b.fullName);
 
   switch (sortBy) {
     case "side":
-      return [{ side: direction }, { fullName: "asc" }];
+      return (a, b) =>
+        compareNullable(
+          enumRank(guestSideOrder, a.side),
+          enumRank(guestSideOrder, b.side),
+          direction,
+          (left, right) => left - right,
+        ) || byFullNameAsc(a, b);
     case "groupType":
-      return [{ groupType: direction }, { fullName: "asc" }];
+      return (a, b) =>
+        compareNullable(
+          enumRank(groupTypeOrder, a.groupType),
+          enumRank(groupTypeOrder, b.groupType),
+          direction,
+          (left, right) => left - right,
+        ) || byFullNameAsc(a, b);
     case "inviteStatus":
-      return [{ invitation: { inviteStatus: direction } }, { fullName: "asc" }];
+      return (a, b) =>
+        compareNullable(
+          a.invitation ? enumRank(inviteStatusOrder, a.invitation.inviteStatus) : null,
+          b.invitation ? enumRank(inviteStatusOrder, b.invitation.inviteStatus) : null,
+          direction,
+          (left, right) => left - right,
+        ) || byFullNameAsc(a, b);
     case "rsvpStatus":
-      return [{ invitation: { rsvpStatus: direction } }, { fullName: "asc" }];
+      return (a, b) =>
+        compareNullable(
+          a.invitation ? enumRank(rsvpStatusOrder, a.invitation.rsvpStatus) : null,
+          b.invitation ? enumRank(rsvpStatusOrder, b.invitation.rsvpStatus) : null,
+          direction,
+          (left, right) => left - right,
+        ) || byFullNameAsc(a, b);
     case "fullName":
     default:
-      return [{ fullName: direction }, { createdAt: "desc" }];
+      return (a, b) =>
+        compareNullable(a.fullName, b.fullName, direction, compareText) ||
+        b.createdAt.getTime() - a.createdAt.getTime();
   }
 }
 
-function toSideTotals(
-  sideCounts: Array<{ side: GuestSide; _count: { _all: number } }>,
-): Record<GuestSide, number> {
+function toSideTotals(guests: readonly GuestRecord[]): Record<GuestSide, number> {
   return {
-    [GuestSide.JAMES]:
-      sideCounts.find((item) => item.side === GuestSide.JAMES)?._count._all ?? 0,
-    [GuestSide.LISA]:
-      sideCounts.find((item) => item.side === GuestSide.LISA)?._count._all ?? 0,
+    [GuestSide.JAMES]: guests.filter((guest) => guest.side === GuestSide.JAMES).length,
+    [GuestSide.LISA]: guests.filter((guest) => guest.side === GuestSide.LISA).length,
   };
 }
 
-async function getHouseholdInviteMaps(
-  householdNames: string[],
-): Promise<HouseholdInviteMaps> {
+function getHouseholdInviteMaps(
+  allGuests: readonly GuestRecord[],
+  householdNames: readonly string[],
+): HouseholdInviteMaps {
   if (householdNames.length === 0) {
     return {
       householdCountMap: new Map(),
@@ -102,54 +187,34 @@ async function getHouseholdInviteMaps(
     };
   }
 
-  const [householdCounts, householdTokens] = await Promise.all([
-    prisma.guest.groupBy({
-      by: ["side", "householdName"],
-      where: {
-        householdName: {
-          in: householdNames,
-        },
-      },
-      _count: {
-        _all: true,
-      },
-    }),
-    prisma.guest.findMany({
-      where: {
-        householdName: {
-          in: householdNames,
-        },
-        invitation: {
-          isNot: null,
-        },
-      },
-      orderBy: [{ householdName: "asc" }, { side: "asc" }, { fullName: "asc" }],
-      select: {
-        side: true,
-        householdName: true,
-        invitation: {
-          select: {
-            inviteToken: true,
-          },
-        },
-      },
-    }),
-  ]);
+  const wanted = new Set(householdNames);
+  const householdGuests = allGuests.filter(
+    (guest) => guest.householdName && wanted.has(guest.householdName),
+  );
 
   const householdCountMap = new Map<string, number>();
-  for (const household of householdCounts) {
-    if (!household.householdName) {
+  for (const guest of householdGuests) {
+    if (!guest.householdName) {
       continue;
     }
 
-    householdCountMap.set(
-      buildHouseholdKey(household.side, household.householdName),
-      household._count._all,
-    );
+    const householdKey = buildHouseholdKey(guest.side, guest.householdName);
+    householdCountMap.set(householdKey, (householdCountMap.get(householdKey) ?? 0) + 1);
   }
 
+  // The token shared by a household is the first one in (household, side, name)
+  // order, so every member of a household resolves to the same RSVP link.
+  const invitedHouseholdGuests = householdGuests
+    .filter((guest) => guest.invitation)
+    .sort(
+      (a, b) =>
+        compareText(a.householdName ?? "", b.householdName ?? "") ||
+        enumRank(guestSideOrder, a.side) - enumRank(guestSideOrder, b.side) ||
+        compareText(a.fullName, b.fullName),
+    );
+
   const householdTokenMap = new Map<string, string>();
-  for (const guest of householdTokens) {
+  for (const guest of invitedHouseholdGuests) {
     if (!guest.householdName || !guest.invitation) {
       continue;
     }
@@ -170,47 +235,17 @@ async function getHouseholdInviteMaps(
 export async function getGuestList(
   filters: GuestListSearchParams,
 ): Promise<GuestListResult> {
-  const where = buildGuestWhereClause(filters);
-  const totalGuests = await prisma.guest.count({ where });
+  const allGuests = await getAllGuests();
+  const matching = allGuests.filter((guest) => matchesFilters(guest, filters));
+
+  const totalGuests = matching.length;
   const totalPages = Math.max(1, Math.ceil(totalGuests / PAGE_SIZE));
   const page = Math.min(filters.page, totalPages);
   const skip = (page - 1) * PAGE_SIZE;
-  const orderBy = buildGuestOrderBy(filters.sortBy, filters.sortDirection);
 
-  const [guests, sideCounts] = await Promise.all([
-    prisma.guest.findMany({
-      where,
-      orderBy,
-      skip,
-      take: PAGE_SIZE,
-      select: {
-        id: true,
-        fullName: true,
-        side: true,
-        groupType: true,
-        relation: true,
-        guestType: true,
-        householdName: true,
-        phone: true,
-        email: true,
-        invitation: {
-          select: {
-            inviteStatus: true,
-            rsvpStatus: true,
-            plusOneAllowed: true,
-            inviteToken: true,
-          },
-        },
-      },
-    }),
-    prisma.guest.groupBy({
-      by: ["side"],
-      where,
-      _count: {
-        _all: true,
-      },
-    }),
-  ]);
+  const guests = [...matching]
+    .sort(buildGuestComparator(filters.sortBy, filters.sortDirection))
+    .slice(skip, skip + PAGE_SIZE);
 
   const householdNames = Array.from(
     new Set(
@@ -220,8 +255,10 @@ export async function getGuestList(
     ),
   );
 
-  const { householdCountMap, householdTokenMap } =
-    await getHouseholdInviteMaps(householdNames);
+  const { householdCountMap, householdTokenMap } = getHouseholdInviteMaps(
+    allGuests,
+    householdNames,
+  );
 
   const guestsWithInviteMetadata: GuestListItem[] = guests.map((guest) => {
     const householdGuestCount = guest.householdName
@@ -229,26 +266,35 @@ export async function getGuestList(
       : 1;
     const inviteKind: InviteKind =
       householdGuestCount > 1 ? "HOUSEHOLD" : "INDIVIDUAL";
-    const invitation = guest.invitation
-      ? {
-          ...guest.invitation,
-          inviteCode: buildInviteCodeFromToken(
-            guest.householdName
-              ? householdTokenMap.get(buildHouseholdKey(guest.side, guest.householdName)) ??
-                  guest.invitation.inviteToken
-              : guest.invitation.inviteToken,
-          ),
-          inviteKind,
-          householdGuestCount,
-          inviteToken: guest.householdName
-            ? householdTokenMap.get(buildHouseholdKey(guest.side, guest.householdName)) ??
-              guest.invitation.inviteToken
-            : guest.invitation.inviteToken,
-        }
+    const sharedToken = guest.invitation
+      ? guest.householdName
+        ? householdTokenMap.get(buildHouseholdKey(guest.side, guest.householdName)) ??
+          guest.invitation.inviteToken
+        : guest.invitation.inviteToken
       : null;
+    const invitation =
+      guest.invitation && sharedToken
+        ? {
+            inviteStatus: guest.invitation.inviteStatus,
+            rsvpStatus: guest.invitation.rsvpStatus,
+            plusOneAllowed: guest.invitation.plusOneAllowed,
+            inviteCode: buildInviteCodeFromToken(sharedToken),
+            inviteKind,
+            householdGuestCount,
+            inviteToken: sharedToken,
+          }
+        : null;
 
     return {
-      ...guest,
+      id: guest.id,
+      fullName: guest.fullName,
+      side: guest.side,
+      groupType: guest.groupType,
+      relation: guest.relation,
+      guestType: guest.guestType,
+      householdName: guest.householdName,
+      phone: guest.phone,
+      email: guest.email,
       invitation,
     };
   });
@@ -261,73 +307,73 @@ export async function getGuestList(
     totalPages,
     pageStart: totalGuests === 0 ? 0 : skip + 1,
     pageEnd: totalGuests === 0 ? 0 : skip + guests.length,
-    sideTotals: toSideTotals(sideCounts),
+    sideTotals: toSideTotals(matching),
   };
 }
 
 export async function getHouseholdOptions(
   excludeGuestId?: string,
 ): Promise<HouseholdOption[]> {
-  const households = await prisma.guest.groupBy({
-    by: ["side", "householdName"],
-    where: {
-      householdName: {
-        not: null,
-      },
-      ...(excludeGuestId
-        ? {
-            id: {
-              not: excludeGuestId,
-            },
-          }
-        : {}),
-    },
-    _count: {
-      _all: true,
-    },
-    orderBy: [{ side: "asc" }, { householdName: "asc" }],
-  });
+  const allGuests = await getAllGuests();
+  const counts = new Map<string, HouseholdOption>();
 
-  return households
-    .filter(
-      (household): household is typeof household & { householdName: string } =>
-        Boolean(household.householdName?.trim()),
-    )
-    .map((household) => ({
-      householdName: household.householdName,
-      side: household.side,
-      linkedGuestCount: household._count._all,
-    }));
+  for (const guest of allGuests) {
+    if (!guest.householdName?.trim() || guest.id === excludeGuestId) {
+      continue;
+    }
+
+    const householdKey = buildHouseholdKey(guest.side, guest.householdName);
+    const existing = counts.get(householdKey);
+
+    if (existing) {
+      existing.linkedGuestCount += 1;
+      continue;
+    }
+
+    counts.set(householdKey, {
+      householdName: guest.householdName,
+      side: guest.side,
+      linkedGuestCount: 1,
+    });
+  }
+
+  return Array.from(counts.values()).sort(
+    (a, b) =>
+      enumRank(guestSideOrder, a.side) - enumRank(guestSideOrder, b.side) ||
+      compareText(a.householdName, b.householdName),
+  );
 }
 
 export async function getGuestForEdit(
   guestId: string,
 ): Promise<GuestFormRecord | null> {
-  return prisma.guest.findUnique({
-    where: {
-      id: guestId,
-    },
-    select: {
-      id: true,
-      fullName: true,
-      side: true,
-      groupType: true,
-      relation: true,
-      guestType: true,
-      householdName: true,
-      phone: true,
-      email: true,
-      notes: true,
-      invitation: {
-        select: {
-          inviteStatus: true,
-          rsvpStatus: true,
-          plusOneAllowed: true,
-          plusOneName: true,
-          dietaryRequirements: true,
-          inviteToken: true,
-        },
-      },
-    },
-  });
+  const snapshot = await guestsCollection().doc(guestId).get();
+  const guest = toGuestRecord(snapshot);
+
+  if (!guest) {
+    return null;
+  }
+
+  return {
+    id: guest.id,
+    fullName: guest.fullName,
+    side: guest.side,
+    groupType: guest.groupType,
+    relation: guest.relation,
+    guestType: guest.guestType,
+    householdName: guest.householdName,
+    phone: guest.phone,
+    email: guest.email,
+    notes: guest.notes,
+    invitation: guest.invitation
+      ? {
+          inviteStatus: guest.invitation.inviteStatus,
+          rsvpStatus: guest.invitation.rsvpStatus,
+          plusOneAllowed: guest.invitation.plusOneAllowed,
+          plusOneName: guest.invitation.plusOneName,
+          dietaryRequirements: guest.invitation.dietaryRequirements,
+          inviteToken: guest.invitation.inviteToken,
+        }
+      : null,
+  };
 }

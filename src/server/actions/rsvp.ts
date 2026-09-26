@@ -1,9 +1,10 @@
 "use server";
 
-import { InviteStatus, RsvpStatus } from "@prisma/client";
+import { FieldValue } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { InviteStatus, RsvpStatus } from "@/domain/enums";
 import {
   parseDietaryRequirements,
 } from "@/features/guests/form-schema";
@@ -11,7 +12,7 @@ import {
   publicRsvpFormSchema,
   type PublicRsvpFormValues,
 } from "@/features/rsvp/types";
-import { prisma } from "@/server/db/prisma";
+import { getDb, guestsCollection } from "@/server/db/firestore";
 import {
   getPublicInvitationByToken,
   resolvePublicInvitationAccessToken,
@@ -93,37 +94,37 @@ export async function submitPublicRsvpAction(
   }
 
   try {
-    await prisma.$transaction(
-      parsed.data.guests.map((guest) => {
-        const allowedGuest = allowedGuests.get(guest.guestId);
+    // Every guest on the invitation is updated in one atomic batch, as the
+    // single Prisma transaction did.
+    const batch = getDb().batch();
 
-        if (!allowedGuest) {
-          throw new Error("Guest not allowed");
-        }
+    for (const guest of parsed.data.guests) {
+      const allowedGuest = allowedGuests.get(guest.guestId);
 
-        const canUsePlusOne =
-          guest.rsvpStatus === RsvpStatus.ATTENDING &&
-          allowedGuest.invitation.plusOneAllowed;
+      if (!allowedGuest) {
+        throw new Error("Guest not allowed");
+      }
 
-        return prisma.invitation.update({
-          where: {
-            guestId: guest.guestId,
-          },
-          data: {
-            inviteStatus: InviteStatus.DELIVERED,
-            rsvpStatus: guest.rsvpStatus,
-            plusOneName:
-              canUsePlusOne && guest.plusOneName.trim()
-                ? guest.plusOneName.trim()
-                : null,
-            dietaryRequirements:
-              guest.rsvpStatus === RsvpStatus.ATTENDING
-                ? parseDietaryRequirements(guest.dietaryRequirements)
-                : [],
-          },
-        });
-      }),
-    );
+      const canUsePlusOne =
+        guest.rsvpStatus === RsvpStatus.ATTENDING &&
+        allowedGuest.invitation.plusOneAllowed;
+
+      batch.update(guestsCollection().doc(guest.guestId), {
+        "invitation.inviteStatus": InviteStatus.DELIVERED,
+        "invitation.rsvpStatus": guest.rsvpStatus,
+        "invitation.plusOneName":
+          canUsePlusOne && guest.plusOneName.trim()
+            ? guest.plusOneName.trim()
+            : null,
+        "invitation.dietaryRequirements":
+          guest.rsvpStatus === RsvpStatus.ATTENDING
+            ? parseDietaryRequirements(guest.dietaryRequirements)
+            : [],
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
 
     revalidatePath("/admin");
     revalidatePath("/admin/guests");

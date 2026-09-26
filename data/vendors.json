@@ -1,0 +1,506 @@
+{
+  "source": "LISA",
+  "vendors": [
+    {
+      "key": "venue",
+      "name": "Venue",
+      "category": "Venue",
+      "totalCost": 1515.5,
+      "leftToPay": 0,
+      "entries": [
+        {
+          "month": "2026-03",
+          "amount": 316.0,
+          "source": "UNASSIGNED",
+          "paid": true
+        },
+        {
+          "month": "2026-04",
+          "amount": 500.0,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-05",
+          "amount": 573.5,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-06",
+          "amount": 200.0,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-07",
+          "amount": 26.0,
+          "source": "LISA",
+          "paid": false
+        }
+      ],
+      "lineItems": [
+        {
+          "description": "Rainworth Village Hall \n\u2022 A dedicated co-ordinator from 9am-8pm\n\u2022 Exclusive full room hire all day (9am - 12am)\n\u2022 Exclusive use of our 5* kitchen all day\n\u2022 White linen table cloths with an optional sash runner\n\u2022 Cake table with white linen table cloth and bow\n\u2022 Our exclusive bespoke ceiling tenting with fairy lights\n\u2022 Self service tea and coffee station",
+          "category": "Venue",
+          "unitPrice": null,
+          "quantity": null,
+          "price": 1080.0
+        },
+        {
+          "description": "Deposit",
+          "category": "Venue",
+          "unitPrice": null,
+          "quantity": null,
+          "price": 100.0
+        },
+        {
+          "description": "Chair cover & sash",
+          "category": "Venue",
+          "unitPrice": 2.75,
+          "quantity": 122.0,
+          "price": 335.5
+        }
+      ],
+      "paymentDetails": "Account Name: RAINWORTH VILLAGE\nHALL R/C 1092122\nAccount Number: 50067116\nSort Code: 089044\nReference: 003402\n\n\nFINAL PAYMENT DEADLINE:\nSaturday, 13 March 2027",
+      "finalPaymentDeadline": "2027-03-13"
+    },
+    {
+      "key": "catering-moyos",
+      "name": "Catering Moyos",
+      "category": "Food",
+      "totalCost": 1950.0,
+      "leftToPay": 1450.0,
+      "entries": [
+        {
+          "month": "2026-04",
+          "amount": 500.0,
+          "source": "UNASSIGNED",
+          "paid": true
+        }
+      ],
+      "lineItems": [],
+      "paymentDetails": null,
+      "finalPaymentDeadline": null
+    },
+    {
+      "key": "catering-l-j",
+      "name": "Catering L & J",
+      "category": "Food",
+      "totalCost": 311.1,
+      "leftToPay": 62.53,
+      "entries": [
+        {
+          "month": "2026-05",
+          "amount": 61.0,
+          "source": "UNASSIGNED",
+          "paid": true
+        },
+        {
+          "month": "2026-06",
+          "amount": 73.5,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-07",
+          "amount": 51.55,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-09",
+          "amount": 62.52,
+          "source": "UNASSIGNED",
+          "paid": false
+        }
+      ],
+      "lineItems": [],
+      "paymentDetails": null,
+      "finalPaymentDeadline": null
+    },
+    {
+      "key": "catering-pondelanis",
+      "name": "Catering Pondelanis",
+      "category": "Food",
+      "totalCost": 870.5,
+      "leftToPay": 870.5,
+      "entries": [],
+      "lineItems": [],
+      "paymentDetails": null,
+      "finalPaymentDeadline": null
+    },
+    {
+      "key": "serenity-decor",
+      "name": "Serenity Decor",
+      "category": "D\u00e9cor",
+      "totalCost": 1522.0,
+      "leftToPay": 358.87,
+      "entries": [
+        {
+          "month": "2026-05",
+          "amount": 280.0,
+          "source": "UNASSIGNED",
+          "paid": true
+        },
+        {
+          "month": "2026-06",
+          "amount": 287.14,
+          "source": "JOINT",
+          "paid": false,
+          "split": {
+            "lisa": 87.14,
+            "james": 200.0
+          }
+        },
+        {
+          "month": "2026-07",
+          "amount": 287.14,
+          "source": "JOINT",
+          "paid": false,
+          "split": {
+            "lisa": 87.14,
+            "james": 200.0
+          }
+        },
+        {
+          "month": "2026-08",
+          "amount": 248.14,
+          "source": "JOINT",
+          "paid": false,
+          "split": {
+            "lisa": 87.14,
+            "james": 161.0
+          }
+        },
+        {
+          "month": "2026-09",
+          "amount": 60.71,
+          "source": "UNASSIGNED",
+          "paid": false
+        }
+      ],
+      "lineItems": [
+        {
+          "description": "Stage",
+          "category": "D\u00e9cor",
+          "unitPrice": 700.0,
+          "quantity": 1.0,
+          "price": 700.0
+        },
+        {
+          "description": "Heart Table",
+          "category": "D\u00e9cor",
+          "unitPrice": 200.0,
+          "quantity": 1.0,
+          "price": 200.0
+        },
+        {
+          "description": "Centrepieces and candles",
+          "category": "D\u00e9cor",
+          "unitPrice": 40.0,
+          "quantity": 12.0,
+          "price": 480.0
+        },
+        {
+          "description": "Napkins",
+          "category": "D\u00e9cor",
+          "unitPrice": 1.0,
+          "quantity": 122.0,
+          "price": 122.0
+        },
+        {
+          "description": "",
+          "category": "D\u00e9cor",
+          "unitPrice": null,
+          "quantity": null,
+          "price": 0.0
+        },
+        {
+          "description": "Delivery",
+          "category": "D\u00e9cor",
+          "unitPrice": 20.0,
+          "quantity": 1.0,
+          "price": 20.0
+        }
+      ],
+      "paymentDetails": "Serenity Decor LTD \n30-90-90\n41236560",
+      "finalPaymentDeadline": null
+    },
+    {
+      "key": "ari-creations",
+      "name": "Ari Creations",
+      "category": "D\u00e9cor",
+      "totalCost": 710.0,
+      "leftToPay": 551.55,
+      "entries": [
+        {
+          "month": "2026-08",
+          "amount": 50.0,
+          "source": "LISA",
+          "paid": true
+        },
+        {
+          "month": "2026-09",
+          "amount": 108.45,
+          "source": "JOINT",
+          "paid": false,
+          "split": {
+            "lisa": 69.45,
+            "james": 39.0
+          }
+        }
+      ],
+      "lineItems": [
+        {
+          "description": "Roora Welcome sign",
+          "category": "D\u00e9cor",
+          "unitPrice": 350.0,
+          "quantity": 1.0,
+          "price": 350.0
+        },
+        {
+          "description": "Telephone booth",
+          "category": "",
+          "unitPrice": 180.0,
+          "quantity": 1.0,
+          "price": 180.0
+        },
+        {
+          "description": "Travel/Set Up",
+          "category": "Decor",
+          "unitPrice": 180.0,
+          "quantity": 1.0,
+          "price": 180.0
+        }
+      ],
+      "paymentDetails": "Ari Curations LTD",
+      "finalPaymentDeadline": null
+    },
+    {
+      "key": "wedding-cake",
+      "name": "Wedding Cake",
+      "category": "Misc",
+      "totalCost": 300.0,
+      "leftToPay": 0,
+      "entries": [
+        {
+          "month": "2026-05",
+          "amount": 75.0,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-06",
+          "amount": 75.0,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-07",
+          "amount": 75.0,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-08",
+          "amount": 75.0,
+          "source": "LISA",
+          "paid": false
+        }
+      ],
+      "lineItems": [
+        {
+          "description": "Wedding Cake",
+          "category": "Misc",
+          "unitPrice": 300.0,
+          "quantity": 1.0,
+          "price": 300.0
+        }
+      ],
+      "paymentDetails": null,
+      "finalPaymentDeadline": null
+    },
+    {
+      "key": "dj",
+      "name": "DJ",
+      "category": "Misc",
+      "totalCost": 1003.4,
+      "leftToPay": 61.7,
+      "entries": [
+        {
+          "month": "2026-04",
+          "amount": 441.7,
+          "source": "UNASSIGNED",
+          "paid": true
+        },
+        {
+          "month": "2026-05",
+          "amount": 500.0,
+          "source": "JAMES",
+          "paid": false
+        }
+      ],
+      "lineItems": [
+        {
+          "description": "DJ",
+          "category": "Misc",
+          "unitPrice": 770.0,
+          "quantity": 1.0,
+          "price": 770.0
+        },
+        {
+          "description": "DJ Travel",
+          "category": "Misc",
+          "unitPrice": 113.4,
+          "quantity": 1.0,
+          "price": 113.4
+        },
+        {
+          "description": "DJ Hotel\n\nmour Hotel",
+          "category": "Misc",
+          "unitPrice": 120.0,
+          "quantity": 1.0,
+          "price": 120.0
+        }
+      ],
+      "paymentDetails": "Account Name: Chidzytainment Ltd\nAccount No: 52834219\nSort Code: 04-03-33\nReference: JAMESANDLISA RORRA\n\n\nFINAL PAYMENT DEADLINE:\nSaturday, 1st May 2027",
+      "finalPaymentDeadline": "2027-05-01"
+    },
+    {
+      "key": "photographer",
+      "name": "Photographer",
+      "category": "Misc",
+      "totalCost": 495.0,
+      "leftToPay": 371.25,
+      "entries": [
+        {
+          "month": "2026-04",
+          "amount": 123.75,
+          "source": "UNASSIGNED",
+          "paid": true
+        }
+      ],
+      "lineItems": [
+        {
+          "description": "Photographer / Videographer",
+          "category": "Misc",
+          "unitPrice": 495.0,
+          "quantity": 1.0,
+          "price": 495.0
+        }
+      ],
+      "paymentDetails": "Account Name: Mr N T Kujenga  \nSort Code: 070246\nAccount No: 45300334\nReference: invoice-1060\n\n\nFINAL PAYMENT DEADLINE:\nApril 30, 2027",
+      "finalPaymentDeadline": "2027-04-30"
+    },
+    {
+      "key": "mc",
+      "name": "MC",
+      "category": "Misc",
+      "totalCost": 450.0,
+      "leftToPay": 0,
+      "entries": [
+        {
+          "month": "2026-04",
+          "amount": 150.0,
+          "source": "UNASSIGNED",
+          "paid": true
+        },
+        {
+          "month": "2026-05",
+          "amount": 75.0,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-06",
+          "amount": 75.0,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-07",
+          "amount": 75.0,
+          "source": "LISA",
+          "paid": false
+        },
+        {
+          "month": "2026-08",
+          "amount": 75.0,
+          "source": "LISA",
+          "paid": false
+        }
+      ],
+      "lineItems": [
+        {
+          "description": "MC",
+          "category": "Misc",
+          "unitPrice": 450.0,
+          "quantity": 1.0,
+          "price": 450.0
+        }
+      ],
+      "paymentDetails": "ACC NAME : T Manyika\nAcc Number : 63122669\nSort Code : 55 50 28\nReference : Invoice 026 - 12\n\n\nFINAL PAYMENT DEADLINE:\nSaturday, 01 May 2027",
+      "finalPaymentDeadline": "2027-05-01"
+    }
+  ],
+  "unassignedItems": [
+    {
+      "description": "Protein\nBeef stew\nFried Fish\nBorewores\nLemon and thyme chicken\nBBQ  Ribs\n\nHot sides\nFried Rice\nNsima\nMac and cheese\nplantain\n\nGreens\nBeans\n\nCold sides\nPotato salad\nColeslaw\nRocket Salad\n\nSet up, plates and cutlery included",
+      "category": "Food",
+      "unitPrice": 16.0,
+      "quantity": 100.0,
+      "price": 1600.0
+    },
+    {
+      "description": "EXTRA GUESTS",
+      "category": "Food",
+      "unitPrice": 16.0,
+      "quantity": 22.0,
+      "price": 352.0
+    },
+    {
+      "description": "Extra food items\nBbq ribs\nCurried goat\nOxtail",
+      "category": "Food",
+      "unitPrice": 4.25,
+      "quantity": 122.0,
+      "price": 518.5
+    },
+    {
+      "description": "Waiting staff for 6 hours each@ \u00a316 per hour",
+      "category": "Food",
+      "unitPrice": 50.0,
+      "quantity": 4.0,
+      "price": 200.0
+    },
+    {
+      "description": "Charger plates",
+      "category": "Food",
+      "unitPrice": 0.5,
+      "quantity": 122.0,
+      "price": 61.0
+    },
+    {
+      "description": "canap\u00e9s",
+      "category": "Food",
+      "unitPrice": 2.05,
+      "quantity": 122.0,
+      "price": 250.1
+    },
+    {
+      "description": "Delivery",
+      "category": "Food",
+      "unitPrice": 150.0,
+      "quantity": 1.0,
+      "price": 150.0
+    }
+  ],
+  "savings": {
+    "lisa": 2305.42,
+    "james": 1100.0
+  },
+  "totals": {
+    "totalCost": 9127.5,
+    "leftToPay": 3726.4
+  }
+}

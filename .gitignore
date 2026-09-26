@@ -12,4 +12,9 @@ dist
 out
 *.log
 *.tsbuildinfo
-prisma/dev.db
+# Firebase service account keys and emulator artifacts
+*firebase-adminsdk*.json
+serviceAccount*.json
+.firebase
+firebase-debug.log
+firestore-debug.log

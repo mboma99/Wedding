@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -26,28 +27,64 @@ import {
   RsvpStatusBadge,
   SideBadge,
 } from "@/features/guests/components/guest-badges";
-import type { GuestListItem } from "@/features/guests/types";
-import { formatInviteCode } from "@/lib/rsvp";
+import { HouseholdGroupingToolbar } from "@/features/guests/components/household-grouping-toolbar";
+import type { GuestListItem, HouseholdOption } from "@/features/guests/types";
 import { cn } from "@/lib/utils";
 
 type GuestTableProps = {
   guests: GuestListItem[];
 };
 
+type SelectionProps = {
+  selectedIds: Set<string>;
+  onToggle: (guestId: string) => void;
+};
+
+function SelectGuestCheckbox({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: () => void;
+}) {
+  return (
+    <input
+      aria-label={label}
+      checked={checked}
+      className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
+      onChange={onChange}
+      type="checkbox"
+    />
+  );
+}
+
 function ContactDetails({
   email,
   phone,
-}: Pick<GuestListItem, "email" | "phone">) {
+  compact = false,
+}: Pick<GuestListItem, "email" | "phone"> & { compact?: boolean }) {
+  // Most guests have no contact details yet, and "No email / No phone"
+  // placeholders doubled the height of every card on a phone.
+  if (compact && !email && !phone) {
+    return null;
+  }
+
   return (
     <div className="space-y-2 text-sm text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <Mail className="h-4 w-4 shrink-0 text-primary" />
-        <span className="break-all">{email ?? "No email"}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Phone className="h-4 w-4 shrink-0 text-primary" />
-        <span className="break-all">{phone ?? "No phone"}</span>
-      </div>
+      {email || !compact ? (
+        <div className="flex items-center gap-2">
+          <Mail className="h-4 w-4 shrink-0 text-primary" />
+          <span className="break-all">{email ?? "No email"}</span>
+        </div>
+      ) : null}
+      {phone || !compact ? (
+        <div className="flex items-center gap-2">
+          <Phone className="h-4 w-4 shrink-0 text-primary" />
+          <span className="break-all">{phone ?? "No phone"}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -62,89 +99,94 @@ function InvitationDetails({
   return (
     <div className="space-y-3">
       <InviteStatusBadge status={invitation.inviteStatus} />
-      <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-        {invitation.inviteKind === "HOUSEHOLD"
-          ? `Household invite · ${invitation.householdGuestCount} guests`
-          : "Individual invite"}
-      </div>
+      {invitation.inviteKind === "HOUSEHOLD" ? (
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          {`Household invite · ${invitation.householdGuestCount} guests`}
+        </div>
+      ) : null}
       {invitation.plusOneAllowed ? (
         <div className="text-xs text-muted-foreground">Plus one enabled</div>
       ) : null}
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-        RSVP code {formatInviteCode(invitation.inviteCode)}
-      </div>
     </div>
   );
 }
 
-function GuestActions({
-  guest,
-  fullWidth = false,
-}: {
-  guest: GuestListItem;
-  fullWidth?: boolean;
-}) {
-  const buttonClassName = fullWidth ? "w-full justify-center" : undefined;
+/** Icon-only so a row stays one line tall; each button keeps a title tooltip. */
+function GuestActions({ guest }: { guest: GuestListItem }) {
+  const rsvpLabel =
+    guest.invitation?.inviteKind === "HOUSEHOLD"
+      ? "Open household RSVP page"
+      : "Open RSVP page";
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {guest.invitation ? (
         <ShareInvitationButton
-          className={buttonClassName}
           guestName={guest.fullName}
           householdName={guest.householdName}
+          iconOnly
           inviteCode={guest.invitation.inviteCode}
           inviteKind={guest.invitation.inviteKind}
           invitePath={`/rsvp/${guest.invitation.inviteToken}`}
-          size="sm"
         />
       ) : null}
-      <Button asChild className={buttonClassName} size="sm" variant="outline">
-        <Link href={`/admin/guests/${guest.id}/edit`}>
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit
+      <Button asChild size="icon" variant="outline">
+        <Link
+          aria-label={`Edit ${guest.fullName}`}
+          href={`/admin/guests/${guest.id}/edit`}
+          title={`Edit ${guest.fullName}`}
+        >
+          <Pencil className="h-4 w-4" />
         </Link>
       </Button>
-      <DeleteGuestButton
-        className={buttonClassName}
-        guestId={guest.id}
-        guestName={guest.fullName}
-        label="Delete"
-        size="sm"
-      />
       {guest.invitation ? (
-        <Button asChild className={buttonClassName} size="sm" variant="ghost">
+        <Button asChild size="icon" variant="ghost">
           <Link
+            aria-label={rsvpLabel}
             href={`/rsvp/${guest.invitation.inviteToken}`}
             rel="noreferrer"
             target="_blank"
+            title={rsvpLabel}
           >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            {guest.invitation.inviteKind === "HOUSEHOLD"
-              ? "Household RSVP"
-              : "RSVP link"}
+            <ExternalLink className="h-4 w-4" />
           </Link>
         </Button>
       ) : null}
+      <DeleteGuestButton
+        guestId={guest.id}
+        guestName={guest.fullName}
+        iconOnly
+        label="Delete"
+      />
     </div>
   );
 }
 
-function MobileGuestCards({ guests }: GuestTableProps) {
+function MobileGuestCards({
+  guests,
+  selectedIds,
+  onToggle,
+}: GuestTableProps & SelectionProps) {
   return (
-    <div className="grid gap-4 md:hidden">
+    <div className="grid gap-3 md:hidden">
       {guests.map((guest) => (
         <div
           key={guest.id}
           className={cn(
-            "rounded-[1.5rem] border p-4",
+            "rounded-[1.5rem] border p-3.5",
             guest.side === "JAMES"
               ? "border-james/15 bg-james/5"
               : "border-lisa/15 bg-lisa/5",
           )}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
+            <div className="flex min-w-0 items-start gap-3">
+              <SelectGuestCheckbox
+                checked={selectedIds.has(guest.id)}
+                label={`Select ${guest.fullName}`}
+                onChange={() => onToggle(guest.id)}
+              />
+              <div className="min-w-0 space-y-1">
               <p className="text-base font-semibold text-primary">{guest.fullName}</p>
               <p className="text-sm text-muted-foreground">{guest.relation}</p>
               {guest.householdName ? (
@@ -152,11 +194,12 @@ function MobileGuestCards({ guests }: GuestTableProps) {
                   {guest.householdName}
                 </p>
               ) : null}
+              </div>
             </div>
             <SideBadge side={guest.side} />
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             <GroupTypeBadge groupType={guest.groupType} />
             <GuestTypeBadge guestType={guest.guestType} />
             {guest.invitation ? (
@@ -167,23 +210,26 @@ function MobileGuestCards({ guests }: GuestTableProps) {
             ) : null}
           </div>
 
-          <div className="mt-4 grid gap-4">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Contact
-              </p>
-              <ContactDetails email={guest.email} phone={guest.phone} />
+          {guest.email || guest.phone ? (
+            <div className="mt-3">
+              <ContactDetails compact email={guest.email} phone={guest.phone} />
             </div>
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Invitation
-              </p>
-              <InvitationDetails invitation={guest.invitation} />
-            </div>
-          </div>
+          ) : null}
 
-          <div className="mt-4">
-            <GuestActions fullWidth guest={guest} />
+          {guest.invitation?.inviteKind === "HOUSEHOLD" ||
+          guest.invitation?.plusOneAllowed ? (
+            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+              {guest.invitation.inviteKind === "HOUSEHOLD" ? (
+                <p className="uppercase tracking-[0.2em]">
+                  {`Household invite · ${guest.invitation.householdGuestCount} guests`}
+                </p>
+              ) : null}
+              {guest.invitation.plusOneAllowed ? <p>Plus one enabled</p> : null}
+            </div>
+          ) : null}
+
+          <div className="mt-3">
+            <GuestActions guest={guest} />
           </div>
         </div>
       ))}
@@ -205,8 +251,69 @@ function EmptyGuestTableState() {
   );
 }
 
-export function GuestTable({ guests }: GuestTableProps) {
+export function GuestTable({
+  guests,
+  householdOptions,
+}: GuestTableProps & { householdOptions: HouseholdOption[] }) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  function toggleGuest(guestId: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(guestId)) {
+        next.delete(guestId);
+      } else {
+        next.add(guestId);
+      }
+
+      return next;
+    });
+  }
+
+  // Selection only covers the guests on screen, so select-all is page-wide.
+  const pageIds = guests.map((guest) => guest.id);
+  const allOnPageSelected =
+    pageIds.length > 0 && pageIds.every((guestId) => selectedIds.has(guestId));
+
+  function togglePage() {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+
+      if (allOnPageSelected) {
+        for (const guestId of pageIds) {
+          next.delete(guestId);
+        }
+      } else {
+        for (const guestId of pageIds) {
+          next.add(guestId);
+        }
+      }
+
+      return next;
+    });
+  }
+
+  const selectedGuests = guests.filter((guest) => selectedIds.has(guest.id));
+
   const columns: ColumnDef<GuestListItem>[] = [
+    {
+      id: "select",
+      header: () => (
+        <SelectGuestCheckbox
+          checked={allOnPageSelected}
+          label="Select every guest on this page"
+          onChange={togglePage}
+        />
+      ),
+      cell: ({ row }) => (
+        <SelectGuestCheckbox
+          checked={selectedIds.has(row.original.id)}
+          label={`Select ${row.original.fullName}`}
+          onChange={() => toggleGuest(row.original.id)}
+        />
+      ),
+    },
     {
       accessorKey: "fullName",
       header: "Guest",
@@ -301,7 +408,11 @@ export function GuestTable({ guests }: GuestTableProps) {
           <EmptyGuestTableState />
         ) : (
           <>
-            <MobileGuestCards guests={guests} />
+            <MobileGuestCards
+              guests={guests}
+              onToggle={toggleGuest}
+              selectedIds={selectedIds}
+            />
             <div className="hidden overflow-x-auto rounded-[1.5rem] border border-border/80 md:block">
               <table className="min-w-full divide-y divide-border text-left">
                 <thead className="bg-muted/35">
@@ -336,6 +447,15 @@ export function GuestTable({ guests }: GuestTableProps) {
                 </tbody>
               </table>
             </div>
+            {/* Direct child of the tall card body: a wrapper would collapse the
+                sticky scroll range and pin it to the end of the list instead. */}
+            {selectedGuests.length ? (
+              <HouseholdGroupingToolbar
+                householdOptions={householdOptions}
+                onClearSelection={() => setSelectedIds(new Set())}
+                selectedGuests={selectedGuests}
+              />
+            ) : null}
           </>
         )}
       </CardContent>

@@ -1,4 +1,4 @@
-import { GuestSide, GuestType, RsvpStatus } from "@prisma/client";
+import { GuestSide, GuestType, RsvpStatus } from "@/domain/enums";
 import { z } from "zod";
 
 import { sideLabels, guestTypeLabels } from "@/features/guests/types";

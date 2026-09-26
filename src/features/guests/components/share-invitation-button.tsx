@@ -12,6 +12,7 @@ type ShareInvitationButtonProps = {
   inviteKind: "HOUSEHOLD" | "INDIVIDUAL";
   inviteCode: string;
   invitePath: string;
+  iconOnly?: boolean;
 } & Pick<ButtonProps, "className" | "size" | "variant">;
 
 export function ShareInvitationButton({
@@ -20,6 +21,7 @@ export function ShareInvitationButton({
   inviteKind,
   inviteCode,
   invitePath,
+  iconOnly = false,
   className,
   size = "sm",
   variant = "default",
@@ -97,28 +99,30 @@ export function ShareInvitationButton({
     }
   }
 
+  const label =
+    status === "shared"
+      ? "Shared"
+      : status === "copied"
+        ? "Copied"
+        : status === "error"
+          ? "Share failed"
+          : "Share invite";
+  const Icon = status === "shared" || status === "copied" ? Check : Share2;
+
   return (
     <Button
+      aria-label={iconOnly ? `${label} for ${guestName}` : undefined}
       className={className}
       onClick={() => {
         void handleShare();
       }}
-      size={size}
+      size={iconOnly ? "icon" : size}
+      title={iconOnly ? label : undefined}
       type="button"
       variant={variant}
     >
-      {status === "shared" || status === "copied" ? (
-        <Check className="mr-2 h-4 w-4" />
-      ) : (
-        <Share2 className="mr-2 h-4 w-4" />
-      )}
-      {status === "shared"
-        ? "Shared"
-        : status === "copied"
-          ? "Copied"
-          : status === "error"
-            ? "Share failed"
-            : "Share invite"}
+      <Icon className={iconOnly ? "h-4 w-4" : "mr-2 h-4 w-4"} />
+      {iconOnly ? null : label}
     </Button>
   );
 }
