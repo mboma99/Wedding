@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 import { toast } from "sonner";
-import { Copy, Plus, RotateCw, Search, Trash2, X } from "lucide-react";
+import { Copy, Pencil, Plus, RotateCw, Search, Trash2, X } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
@@ -35,20 +35,23 @@ import { PLAN_LEFT, PLAN_RIGHT, PlanCanvas } from "@/features/floor-plan/compone
 import { cn } from "@/lib/utils";
 import { saveFloorPlanAction } from "@/server/actions/floor-plan";
 
-type SaveState = "saved" | "pending" | "saving" | "error";
-
 type Drag =
   | { mode: "move"; id: string; ox: number; oy: number }
   | { mode: "resize"; id: string; edge: string; left: number; right: number; top: number; bottom: number };
 
-const SAVE_DELAY = 800;
 const snap = (v: number) => Math.round(v / 5) * 5;
 
 export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPlan; guests: SeatingGuest[] }) {
   const [plan, setPlan] = useState(initialPlan);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
-  const [saveState, setSaveState] = useState<SaveState>("saved");
+  // The plan is read-only until someone chooses to edit it; nothing is
+  // stored until they press Save, and Cancel puts the saved plan back.
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(initialPlan);
+  const [saving, setSaving] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const dirty = plan !== saved;
   const [confirmReset, setConfirmReset] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -61,7 +64,6 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
     const hallCentre = (PLAN_LEFT + initialPlan.room.w / 2) / (PLAN_LEFT + initialPlan.room.w + PLAN_RIGHT);
     scroller.scrollLeft = hallCentre * scroller.scrollWidth - scroller.clientWidth / 2;
   }, [initialPlan.room.w]);
-  const lastSaved = useRef(initialPlan);
 
   const { clashing, messages } = useMemo(() => findClashes(plan), [plan]);
   const summary = useMemo(() => seatingSummary(plan, guests), [plan, guests]);
@@ -72,34 +74,43 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
   );
   const selected = plan.items.find((item) => item.id === selectedId) ?? null;
 
-  // Save a moment after the last change; a drag keeps pushing it back, so it
-  // saves once when the item is let go.
-  const save = useCallback(async (next: FloorPlan) => {
-    setSaveState("saving");
-    const result = await saveFloorPlanAction(next);
-    if (result.success) {
-      lastSaved.current = next;
-      setSaveState((state) => (state === "saving" ? "saved" : state));
-    } else {
-      setSaveState("error");
-      toast.error(result.message);
-    }
-  }, []);
-
   useEffect(() => {
-    if (plan === lastSaved.current) return;
-    setSaveState("pending");
-    if (drag) return;
-    const timer = window.setTimeout(() => void save(plan), SAVE_DELAY);
-    return () => window.clearTimeout(timer);
-  }, [plan, drag, save]);
-
-  useEffect(() => {
-    if (saveState === "saved") return;
+    if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [saveState]);
+  }, [dirty]);
+
+  function startEditing() {
+    setEditing(true);
+    setConfirmDiscard(false);
+  }
+
+  async function saveChanges() {
+    setSaving(true);
+    const result = await saveFloorPlanAction(plan);
+    setSaving(false);
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+    setSaved(plan);
+    setEditing(false);
+    setConfirmDiscard(false);
+    toast.success("Floor plan saved");
+  }
+
+  function cancelEditing() {
+    if (dirty && !confirmDiscard) {
+      setConfirmDiscard(true);
+      return;
+    }
+    setPlan(saved);
+    setEditing(false);
+    setConfirmDiscard(false);
+    setDrag(null);
+    setConfirmReset(false);
+  }
 
   const updateItem = (id: string, change: (item: PlanItem) => PlanItem) =>
     setPlan((current) => ({
@@ -120,7 +131,7 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
     const handle = target.closest<SVGGElement>("[data-handle]");
     const itemEl = target.closest<SVGGElement>("[data-item-id]");
 
-    if (handle) {
+    if (handle && editing) {
       const item = plan.items.find((i) => i.id === handle.dataset.handle);
       if (!item) return;
       const { sw, sh } = specOf(item).shape === "circle" ? { sw: 0, sh: 0 } : shownSize(item);
@@ -145,8 +156,9 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
 
     const item = plan.items.find((i) => i.id === itemEl.dataset.itemId);
     if (!item) return;
-    const p = toPlan(event);
     setSelectedId(item.id);
+    if (!editing) return;
+    const p = toPlan(event);
     setDrag({ mode: "move", id: item.id, ox: p.x - item.x, oy: p.y - item.y });
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -188,7 +200,7 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
       ArrowUp: [0, -step],
       ArrowDown: [0, step],
     };
-    const move = moves[event.key];
+    const move = editing ? moves[event.key] : undefined;
     if (move) {
       event.preventDefault();
       setSelectedId(id);
@@ -196,7 +208,7 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
     } else if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       setSelectedId(id);
-    } else if ((event.key === "Delete" || event.key === "Backspace") && id === selectedId) {
+    } else if (editing && (event.key === "Delete" || event.key === "Backspace") && id === selectedId) {
       event.preventDefault();
       removeSelected();
     }
@@ -273,38 +285,48 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
     });
   }
 
-  const statusText = {
-    saved: "All changes saved",
-    pending: "Saving…",
-    saving: "Saving…",
-    error: "Not saved",
-  }[saveState];
-
   return (
     <main className="container space-y-6 py-6 sm:space-y-8 sm:py-10">
       <PageHeader
         actions={
-          <div className="flex items-center gap-2 text-sm">
-            <span
-              aria-hidden
-              className={cn(
-                "h-2 w-2 rounded-full",
-                saveState === "saved" && "bg-emerald-600",
-                (saveState === "pending" || saveState === "saving") && "bg-amber-500",
-                saveState === "error" && "bg-destructive",
+          editing ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {confirmDiscard ? (
+                <>
+                  <span className="text-sm text-muted-foreground">Discard your changes?</span>
+                  <Button className="text-destructive" onClick={cancelEditing} size="sm" type="button" variant="outline">
+                    Discard
+                  </Button>
+                  <Button onClick={() => setConfirmDiscard(false)} size="sm" type="button" variant="outline">
+                    Keep editing
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span aria-live="polite" className="text-sm text-muted-foreground">
+                    {dirty ? "Unsaved changes" : "No changes yet"}
+                  </span>
+                  <Button disabled={saving} onClick={cancelEditing} size="sm" type="button" variant="outline">
+                    Cancel
+                  </Button>
+                  <Button disabled={!dirty || saving} onClick={() => void saveChanges()} size="sm" type="button">
+                    {saving ? "Saving…" : "Save"}
+                  </Button>
+                </>
               )}
-            />
-            <span aria-live="polite" className="text-muted-foreground">
-              {statusText}
-            </span>
-            {saveState === "error" ? (
-              <Button onClick={() => void save(plan)} size="sm" type="button" variant="outline">
-                Try again
-              </Button>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <Button onClick={startEditing} size="sm" type="button">
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit plan
+            </Button>
+          )
         }
-        meta="Main hall at Rainworth Village Hall. Drag to move, use the pink handles to resize. Changes save automatically."
+        meta={
+          editing
+            ? "Drag to move, use the pink handles to resize, and tap a table to seat guests. Save when you're done."
+            : "Main hall at Rainworth Village Hall. Tap a table to see who's sitting there."
+        }
         title="Floor plan"
       />
 
@@ -314,6 +336,7 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
             <PlanCanvas
               chairsUsed={chairsUsed}
               clashing={clashing}
+              editable={editing}
               onKeyDown={handleKeyDown}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
@@ -354,7 +377,7 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
               From your guest list: everyone who hasn&apos;t declined
               {summary.plusOnes ? `, ${summary.plusOnes} plus-one${summary.plusOnes === 1 ? "" : "s"}` : ""} and
               you both on the stage.
-              {summary.declined ? ` ${summary.declined} declined and aren't counted.` : ""} Select a table to seat guests at it.
+              {summary.declined ? ` ${summary.declined} declined and aren't counted.` : ""}
             </p>
             <p
               className={cn(
@@ -380,7 +403,17 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
             ) : null}
           </Panel>
 
-          {selected ? (
+          {selected && !editing && specOf(selected).table ? (
+            <Panel title={`${nameOf(selected)} · ${chairsUsed.get(selected.id) ?? 0} of ${seatsOf(selected)} chairs`}>
+              <SeatedList seated={byTable.get(selected.id) ?? []} />
+              <Button onClick={startEditing} size="sm" type="button" variant="outline">
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Change seating
+              </Button>
+            </Panel>
+          ) : null}
+
+          {selected && editing ? (
             <SelectedPanel
               item={selected}
               key={selected.id}
@@ -402,6 +435,8 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
             </SelectedPanel>
           ) : null}
 
+          {editing ? (
+          <>
           <Panel title="Add">
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => addItem("round")} size="sm" type="button">
@@ -458,6 +493,9 @@ export function FloorPlanEditor({ initialPlan, guests }: { initialPlan: FloorPla
               </Button>
             )}
           </Panel>
+
+          </>
+          ) : null}
 
           <Panel title="What's assumed">
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
@@ -568,6 +606,21 @@ function SideDot({ side }: { side: SeatingGuest["side"] }) {
       className={cn("inline-block h-2 w-2 shrink-0 rounded-full", side === "LISA" ? "bg-lisa" : "bg-james")}
       role="img"
     />
+  );
+}
+
+function SeatedList({ seated }: { seated: SeatingGuest[] }) {
+  if (!seated.length) return <p className="text-sm text-muted-foreground">Nobody yet.</p>;
+  return (
+    <ul className="space-y-1">
+      {seated.map((guest) => (
+        <li className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5 text-sm" key={guest.id}>
+          <SideDot side={guest.side} />
+          <span className="min-w-0 flex-1 truncate">{guestName(guest)}</span>
+          {guest.declined ? <span className="text-xs text-destructive">declined</span> : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 

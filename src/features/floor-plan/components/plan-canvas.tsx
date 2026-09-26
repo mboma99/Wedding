@@ -30,6 +30,8 @@ type PlanCanvasProps = {
   clashing: Set<string>;
   /** Show the live size readout while a handle is being dragged. */
   resizing: boolean;
+  /** Off, items can only be tapped to select; nothing drags, and swipes scroll the page. */
+  editable: boolean;
   svgRef: Ref<SVGSVGElement>;
   onPointerDown: (event: PointerEvent<SVGSVGElement>) => void;
   onPointerMove: (event: PointerEvent<SVGSVGElement>) => void;
@@ -67,6 +69,7 @@ export function PlanCanvas({
   selectedId,
   clashing,
   resizing,
+  editable,
   svgRef,
   onPointerDown,
   onPointerMove,
@@ -149,6 +152,7 @@ export function PlanCanvas({
         <PlanShape
           chairsUsed={chairsUsed.get(item.id) ?? 0}
           clash={clashing.has(item.id)}
+          editable={editable}
           item={item}
           key={item.id}
           parked={isParked(item, plan.room)}
@@ -156,7 +160,7 @@ export function PlanCanvas({
         />
       ))}
 
-      {selected ? <Handles item={selected} resizing={resizing} /> : null}
+      {selected && editable ? <Handles item={selected} resizing={resizing} /> : null}
     </svg>
   );
 }
@@ -167,8 +171,10 @@ function PlanShape({
   clash,
   parked,
   chairsUsed,
+  editable,
 }: {
   chairsUsed: number;
+  editable: boolean;
   item: PlanItem;
   selected: boolean;
   clash: boolean;
@@ -217,7 +223,11 @@ function PlanShape({
   return (
     <g
       aria-label={nameOf(item)}
-      className={cn("cursor-grab touch-none outline-none active:cursor-grabbing focus-visible:[&>g>*]:stroke-ring", parked && "opacity-75")}
+      className={cn(
+        "outline-none focus-visible:[&>g>*]:stroke-ring",
+        editable ? "cursor-grab touch-none active:cursor-grabbing" : "cursor-pointer",
+        parked && "opacity-75",
+      )}
       data-item-id={item.id}
       role="button"
       tabIndex={0}

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 import { LogOut } from "lucide-react";
 
+import { useAdminNavigation } from "@/components/shared/admin-navigation";
 import { cn } from "@/lib/utils";
 import { logoutAdminAction } from "@/server/actions/admin-auth";
 
@@ -25,6 +26,9 @@ function isActive(pathname: string, href: string) {
 
 export function AdminNav() {
   const pathname = usePathname();
+  const { pendingHref, startNavigation } = useAdminNavigation();
+  // The highlight moves to a tapped tab straight away, not when its page lands.
+  const current = pendingHref ?? pathname;
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/80 bg-background/90 backdrop-blur">
@@ -42,7 +46,7 @@ export function AdminNav() {
           style={{ "--segments": navigationItems.length } as CSSProperties}
         >
           {navigationItems.map((item) => {
-            const active = isActive(pathname, item.href);
+            const active = isActive(current, item.href);
 
             return (
               <Link
@@ -53,6 +57,11 @@ export function AdminNav() {
                 )}
                 href={item.href}
                 key={item.href}
+                onClick={(event) => {
+                  // A new tab or window opens separately; nothing to show here.
+                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                  startNavigation(item.href);
+                }}
               >
                 {item.label}
               </Link>
