@@ -12,6 +12,7 @@ const navigationItems = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/guests", label: "Guests" },
   { href: "/admin/vendors", label: "Vendors" },
+  { href: "/admin/floor-plan", label: "Floor plan" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -37,7 +38,7 @@ export function AdminNav() {
 
         <nav
           aria-label="Admin"
-          className="segmented order-last grid w-full grid-cols-3 gap-1 rounded-[var(--segment-radius)] bg-muted/70 p-1 sm:order-none sm:w-80"
+          className="segmented order-last grid w-full grid-cols-4 gap-1 rounded-[var(--segment-radius)] bg-muted/70 p-1 sm:order-none sm:w-[28rem]"
           style={{ "--segments": navigationItems.length } as CSSProperties}
         >
           {navigationItems.map((item) => {
